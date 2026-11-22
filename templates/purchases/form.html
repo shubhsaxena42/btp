@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('purchases.new_title') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('purchases.new_title'), t('purchases.new_subtitle')) %}
+  <a class="btn btn-outline" href="{{ url_for('purchases.index') }}">{{ t('common.back') }}</a>
+{% endcall %}
+{% call ui.card() %}
+<form method="post" action="{{ url_for('purchases.new', back_member=back_member) if back_member else url_for('purchases.new') }}">
+  <div class="form-grid">
+    <div class="form-row">
+      <label for="date">{{ t('common.date') }} *</label>
+      <input type="date" id="date" name="date" value="{{ form.date }}" required>
+    </div>
+    <div class="form-row">
+      <label for="rm">{{ t('common.raw_material') }} *</label>
+      <select id="rm" name="raw_material_id" required>
+        <option value="">{{ t('purchases.select_material') }}</option>
+        {% for m in materials %}
+        <option value="{{ m.id }}" data-unit="{{ t('unit.' ~ m.unit) }}" data-cost="{{ m.cost_per_unit }}"
+                data-cost-fmt="{{ m.cost_per_unit|inr }}" data-onhand="{{ onhand[m.id]|num }}"
+                {{ 'selected' if form.raw_material_id|string == m.id|string }}>{{ L(m,'name') }}</option>
+        {% endfor %}
+      </select>
+      <small class="muted" id="rm-info"></small>
+    </div>
+    <div class="form-row">
+      <label for="qty">{{ t('common.qty') }} *</label>
+      <input type="number" id="qty" name="qty" step="0.01" min="0.01" value="{{ form.qty }}" required>
+    </div>
+    <div class="form-row">
+      <label for="rate">{{ t('common.rate') }} *</label>
+      <input type="number" id="rate" name="rate" step="0.01" min="0" value="{{ form.rate }}" required>
+    </div>
+    <div class="form-row">
+      <label>{{ t('purchases.amount_live') }}</label>
+      <strong id="amount" style="font-size:1.3rem">₹0.00</strong>
+    </div>
+    <div class="form-row">
+      <label>{{ t('purchases.supplier_type') }} *</label>
+      <div>
+        <label><input type="radio" name="supplier_type" value="member" {{ 'checked' if form.supplier_type == 'member' }}> {{ t('purchases.supplier_member') }}</label><br>
+        <label><input type="radio" name="supplier_type" value="vendor" {{ 'checked' if form.supplier_type == 'vendor' }}> {{ t('purchases.supplier_vendor') }}</label>
+      </div>
+    </div>
+    <div class="form-row" id="member-box">
+      <label for="member_id">{{ t('common.member') }} *</label>
+      <select id="member_id" name="member_id">
+        <option value="">{{ t('purchases.select_member') }}</option>
+        {% for m in members %}<option value="{{ m.id }}" {{ 'selected' if form.member_id|string == m.id|string }}>{{ L(m,'name') }} ({{ m.code }})</option>{% endfor %}
+      </select>
+      <small class="muted">{{ t('purchases.member_note') }}</small>
+    </div>
+    <div class="form-row" id="vendor-box">
+      <label for="supplier_name">{{ t('purchases.vendor_name') }} *</label>
+      <input type="text" id="supplier_name" name="supplier_name" value="{{ form.supplier_name }}">
+      <small class="muted">{{ t('purchases.vendor_note') }}</small>
+    </div>
+    <div class="form-row" style="grid-column:1/-1">
+      <label for="notes">{{ t('common.notes') }}</label>
+      <textarea id="notes" name="notes" rows="2">{{ form.notes }}</textarea>
+    </div>
+    <div class="form-row" style="grid-column:1/-1">
+      <label><input type="checkbox" name="update_cost" value="1" {{ 'checked' if form.update_cost }}> {{ t('purchases.update_cost') }}</label>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ t('common.save') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('purchases.index') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  var rm=document.getElementById('rm'), qty=document.getElementById('qty'), rate=document.getElementById('rate'),
+      amt=document.getElementById('amount'), info=document.getElementById('rm-info');
+  var tpl={{ t('purchases.material_info')|tojson }};
+  function fmt(n){return '₹'+n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function upd(){amt.textContent=fmt((parseFloat(qty.value)||0)*(parseFloat(rate.value)||0));}
+  function mat(set){
+    var o=rm.options[rm.selectedIndex];
+    if(!o||!o.value){info.textContent='';return;}
+    info.textContent=tpl.replace(/\{unit\}/g,o.dataset.unit).replace('{cost}',o.dataset.costFmt).replace('{onhand}',o.dataset.onhand);
+    if(set&&rate.value===''){rate.value=o.dataset.cost;}
+    upd();
+  }
+  function sup(){
+    var v=document.querySelector('input[name=supplier_type]:checked');v=v?v.value:'member';
+    document.getElementById('member-box').style.display=v==='member'?'':'none';
+    document.getElementById('vendor-box').style.display=v==='vendor'?'':'none';
+  }
+  rm.addEventListener('change',function(){rate.value='';mat(true);});
+  qty.addEventListener('input',upd);rate.addEventListener('input',upd);
+  document.querySelectorAll('input[name=supplier_type]').forEach(function(r){r.addEventListener('change',sup);});
+  mat(true);sup();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('consignments.title') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('consignments.title'), t('consignments.subtitle')) %}
+  <a class="btn btn-primary" href="{{ url_for('consignments.new') }}">+ {{ t('consignments.new') }}</a>
+{% endcall %}
+
+<div class="kpi-grid">
+  {{ ui.kpi(t('consignments.kpi_open'), kpi.open|num) }}
+  {{ ui.kpi(t('consignments.kpi_units'), kpi.units|num, tone='saffron') }}
+  {{ ui.kpi(t('consignments.kpi_value'), kpi.value|inr0, tone='success') }}
+  {{ ui.kpi(t('consignments.kpi_due'), kpi.due|inr0, tone='warning' if kpi.due > 0 else 'primary') }}
+</div>
+
+<form method="get" class="toolbar">
+  <select name="outlet" aria-label="{{ t('consignments.outlet') }}">
+    <option value="">{{ t('consignments.all_outlets') }}</option>
+    {% for o in outlets %}<option value="{{ o.id }}" {{ 'selected' if f_outlet == o.id }}>{{ o.name }}</option>{% endfor %}
+  </select>
+  <select name="status" aria-label="{{ t('common.status') }}">
+    <option value="">{{ t('common.all') }}</option>
+    <option value="open" {{ 'selected' if f_status == 'open' }}>{{ t('status.open') }}</option>
+    <option value="settled" {{ 'selected' if f_status == 'settled' }}>{{ t('status.settled') }}</option>
+  </select>
+  <button class="btn btn-outline" type="submit">{{ t('common.filter') }}</button>
+</form>
+
+{% call ui.card(t('consignments.title')) %}
+{% if items %}
+<div style="overflow-x:auto">
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('consignments.cn_no') }}</th><th>{{ t('consignments.outlet') }}</th><th>{{ t('consignments.sent_on') }}</th>
+    <th class="num">{{ t('consignments.age') }}</th>
+    <th class="num">{{ t('consignments.sent') }}</th><th class="num">{{ t('consignments.sold') }}</th>
+    <th class="num">{{ t('consignments.returned') }}</th><th class="num">{{ t('consignments.at_outlet') }}</th>
+    <th class="num">{{ t('consignments.value_at_outlet') }}</th>
+    <th class="num">{{ t('consignments.invoiced') }}</th><th class="num">{{ t('common.due') }}</th>
+    <th>{{ t('common.status') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for c in items %}
+  <tr>
+    <td><a href="{{ url_for('consignments.detail', cn_id=c.id) }}"><strong>{{ c.cn_no }}</strong></a></td>
+    <td><a href="{{ safe_url('customers.detail', customer_id=c.customer_id) }}">{{ c.outlet_name }}</a></td>
+    <td class="nowrap">{{ c.sent_on|dmy }}</td>
+    <td class="num">{% if c.status == 'open' and c.age > 45 %}{{ ui.badge(c.age, 'warning') }}{% else %}{{ c.age }}{% endif %}</td>
+    <td class="num">{{ c.sent|num }}</td><td class="num">{{ c.sold|num }}</td><td class="num">{{ c.returned|num }}</td>
+    <td class="num"><strong>{{ c.at_outlet|num }}</strong></td>
+    <td class="num">{{ c.value_out|inr }}</td>
+    <td class="num">{{ c.invoiced|inr }}</td>
+    <td class="num">{{ c.due|inr }}</td>
+    <td>{{ ui.status_badge(c.status) }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+
+{% call ui.card(t('consignments.by_outlet')) %}
+{% if summary %}
+<table class="data-table">
+  <thead><tr><th>{{ t('consignments.outlet') }}</th><th class="num">{{ t('consignments.at_outlet') }}</th>
+  <th class="num">{{ t('consignments.value_at_outlet') }}</th><th class="num">{{ t('common.due') }}</th></tr></thead>
+  <tbody>
+  {% for s in summary %}
+  <tr><td><a href="{{ safe_url('customers.detail', customer_id=s.id) }}">{{ s.name }}</a></td>
+  <td class="num">{{ s.units|num }}</td><td class="num">{{ s.value|inr }}</td><td class="num">{{ s.due|inr }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+{% endblock %}

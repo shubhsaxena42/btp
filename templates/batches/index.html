@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('batches.title') }}{% endblock %}
+{% block content %}
+{{ ui.page_header(t('batches.title'), t('batches.subtitle')) }}
+<div class="kpi-grid">
+  {{ ui.kpi(t('batches.kpi_pending'), kpi.pending, tone='warning', href=url_for('batches.index', status='pending')) }}
+  {{ ui.kpi(t('batches.kpi_approved_month'), kpi.approved_month, tone='success', href=url_for('batches.index', status='approved')) }}
+  {{ ui.kpi(t('batches.kpi_rejected'), kpi.rejected, tone='danger', href=url_for('batches.index', status='rejected')) }}
+  {{ ui.kpi(t('batches.kpi_published'), kpi.published, tone='primary', href=url_for('batches.portal')) }}
+</div>
+<div class="card"><div class="card-body">
+<form method="get" class="toolbar">
+  <select name="status">
+    <option value="all">{{ t('common.all') }} ({{ t('common.status') }})</option>
+    {% for s in ['pending','approved','rejected'] %}<option value="{{ s }}" {{ 'selected' if status == s }}>{{ t('status.' ~ s) }}</option>{% endfor %}
+  </select>
+  <select name="gi">
+    <option value="">{{ t('batches.all_gi') }}</option>
+    {% for g in gis %}<option value="{{ g.id }}" {{ 'selected' if gi_id == g.id }}>{{ L(g, 'name') }}</option>{% endfor %}
+  </select>
+  <select name="product">
+    <option value="">{{ t('batches.all_products') }}</option>
+    {% for p in products %}<option value="{{ p.id }}" {{ 'selected' if product_id == p.id }}>{{ L(p, 'name') }}</option>{% endfor %}
+  </select>
+  <select name="published">
+    <option value="">{{ t('batches.pub_any') }}</option>
+    <option value="yes" {{ 'selected' if published == 'yes' }}>{{ t('batches.pub_yes') }}</option>
+    <option value="no" {{ 'selected' if published == 'no' }}>{{ t('batches.pub_no') }}</option>
+  </select>
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ t('batches.search_ph') }}">
+  <button class="btn btn-primary btn-sm" type="submit">{{ t('common.filter') }}</button>
+  <a class="btn btn-outline btn-sm" href="{{ url_for('batches.index') }}">{{ t('common.cancel') }}</a>
+</form>
+</div></div>
+<div class="card"><div class="card-body" style="overflow-x:auto">
+{% if batches %}
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('batches.batch_no') }}</th><th>{{ t('common.product') }}</th><th>{{ t('common.gi') }}</th>
+    <th>{{ t('batches.maker') }}</th><th class="num">{{ t('batches.qty_made') }}</th>
+    <th class="num">{{ t('batches.on_hand') }}</th><th>{{ t('batches.mfg_date') }}</th>
+    <th>{{ t('batches.expiry') }}</th><th>{{ t('common.status') }}</th><th>{{ t('batches.published') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for x in batches %}{% set r = x.r %}
+  <tr class="row-link" onclick="location.href='{{ url_for('batches.detail', batch_id=r.id) }}'">
+    <td class="nowrap"><a href="{{ url_for('batches.detail', batch_id=r.id) }}">{{ r.batch_no }}</a></td>
+    <td>{{ L({'name': r.product_name, 'name_hi': r.product_name_hi}, 'name') }}</td>
+    <td>{{ L({'name': r.gi_name, 'name_hi': r.gi_name_hi}, 'name') }}</td>
+    <td>{% if r.member_name %}{{ L({'name': r.member_name, 'name_hi': r.member_name_hi}, 'name') }}{% else %}-{% endif %}</td>
+    <td class="num">{{ r.qty|num }}</td>
+    <td class="num">{{ r.qty_on_hand|num }}</td>
+    <td class="nowrap">{{ r.mfg_date|dmy }}</td>
+    <td class="nowrap">{{ r.expiry_date|dmy }}
+      {% if x.exp == 'expired' %}{{ ui.badge(t('batches.expired'), 'danger') }}
+      {% elif x.exp == 'soon' %}{{ ui.badge(t('batches.expiring'), 'warning') }}{% endif %}</td>
+    <td>{{ ui.status_badge(r.status) }}</td>
+    <td>{% if r.published_on %}{{ ui.badge(t('status.published'), 'success') }}{% else %}<span class="muted">-</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty() }}{% endif %}
+</div></div>
+{% endblock %}

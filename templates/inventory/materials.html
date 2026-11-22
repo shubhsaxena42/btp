@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('inventory.materials') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('inventory.materials')) %}
+  <a class="btn btn-outline" href="{{ url_for('inventory.index', tab='raw') }}">{{ t('common.back') }}</a>
+  <a class="btn btn-primary" href="{{ url_for('inventory.new_material') }}">{{ t('inventory.add_material') }}</a>
+{% endcall %}
+{% call ui.card() %}
+{% if rows %}
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('common.code') }}</th><th>{{ t('common.name') }}</th><th>{{ t('inventory.name_hi') }}</th>
+    <th>{{ t('common.unit') }}</th><th class="num">{{ t('inventory.cost_per_unit') }}</th>
+    <th class="num">{{ t('inventory.reorder_level') }}</th><th class="num">{{ t('inventory.on_hand') }}</th>
+    <th class="no-print">{{ t('common.actions') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.name_hi or '' }}</td>
+      <td>{{ t('unit.' ~ r.unit) }}</td>
+      <td class="num">{{ r.cost_per_unit|inr }}</td>
+      <td class="num">{{ r.reorder_level|num }}</td>
+      <td class="num">{{ r.qty_on_hand|num }}</td>
+      <td class="no-print"><a class="btn btn-sm btn-outline" href="{{ url_for('inventory.edit_material', material_id=r.id) }}">{{ t('common.edit') }}</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+{% endblock %}

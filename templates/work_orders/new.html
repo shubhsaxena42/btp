@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('work_orders.new') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('work_orders.new')) %}
+  <a class="btn btn-outline" href="{{ url_for('work_orders.index') }}">{{ t('common.back') }}</a>
+{% endcall %}
+<form method="post" class="stack" id="wo-form">
+<div class="card"><div class="card-body">
+  <div id="au-warning" class="alert alert-danger" style="display:none">{{ t('work_orders.au_warning') }}</div>
+  <div class="form-grid">
+    <div class="form-row"><label>{{ t('common.member') }} *</label>
+      <select name="member_id" id="member" required>
+        <option value="">{{ t('common.select') }}</option>
+        {% for m in members %}<option value="{{ m.id }}" data-gis="{{ (mgi.get(m.id, []))|tojson|forceescape }}" {{ 'selected' if m.id == v.member_id }}>{{ m.code }} - {{ L(m, 'name') }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('common.product') }} *</label>
+      <select name="product_id" id="product" required>
+        <option value="">{{ t('common.select') }}</option>
+        {% for p in products %}<option value="{{ p.id }}" data-gi="{{ p.gi_id }}" data-rate="{{ p.piece_rate }}" data-unit="{{ t('unit.' ~ p.unit) }}" data-bom="{{ (bom.get(p.id, []))|tojson|forceescape }}" {{ 'selected' if p.id == v.product_id }}>{{ p.sku }} - {{ L(p, 'name') }}</option>{% endfor %}
+      </select></div>
+    <div class="form-row"><label>{{ t('work_orders.qty_pieces') }} *</label>
+      <input type="number" name="qty" id="qty" min="1" step="1" value="{{ v.qty }}" required></div>
+    <div class="form-row"><label>{{ t('work_orders.wage_rate') }}</label>
+      <input type="number" name="wage_rate" id="rate" min="0" step="0.01" value="{{ v.wage_rate }}" required></div>
+    <div class="form-row"><label>{{ t('work_orders.issued_on') }} *</label>
+      <input type="date" name="issued_on" value="{{ v.issued_on }}" required></div>
+    <div class="form-row"><label>{{ t('work_orders.due_on') }}</label>
+      <input type="date" name="due_on" value="{{ v.due_on }}"></div>
+  </div>
+  <div class="form-row"><label>{{ t('common.notes') }}</label><textarea name="notes" rows="2">{{ v.notes }}</textarea></div>
+</div></div>
+
+<div class="card"><div class="card-header">{{ t('work_orders.materials') }}</div><div class="card-body">
+  <p class="muted">{{ t('work_orders.materials_help') }}</p>
+  <table class="lines-table" id="lines">
+    <thead><tr><th>{{ t('common.raw_material') }}</th><th>{{ t('work_orders.qty_issue') }}</th><th>{{ t('work_orders.on_hand') }}</th><th></th></tr></thead>
+    <tbody id="lines-body"></tbody>
+  </table>
+  <button type="button" class="btn btn-outline btn-sm" id="add-row">+ {{ t('work_orders.add_row') }}</button>
+</div></div>
+<div class="form-actions">
+  <button class="btn btn-primary" type="submit">{{ t('common.submit') }}</button>
+  <a class="btn btn-outline" href="{{ url_for('work_orders.index') }}">{{ t('common.cancel') }}</a>
+</div>
+</form>
+<template id="row-tpl"><tr>
+  <td><select name="rm_id[]" class="rm"><option value="">{{ t('common.select') }}</option>
+    {% for r in raws %}<option value="{{ r.id }}" data-unit="{{ t('unit.' ~ r.unit) }}" data-oh="{{ r.qty_on_hand|num }}">{{ r.code }} - {{ L(r, 'name') }}</option>{% endfor %}</select></td>
+  <td><input type="number" name="mat_qty[]" class="mq" min="0" step="any"> <span class="muted unit"></span></td>
+  <td class="oh muted"></td>
+  <td><button type="button" class="btn btn-sm btn-outline rm-del">{{ t('work_orders.remove') }}</button></td>
+</tr></template>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  var initial = {{ v.lines|tojson }};
+  var body = document.getElementById('lines-body'), tpl = document.getElementById('row-tpl');
+  var member = document.getElementById('member'), product = document.getElementById('product');
+  var qty = document.getElementById('qty'), rate = document.getElementById('rate');
+  function upd(tr){
+    var o = tr.querySelector('.rm').selectedOptions[0];
+    tr.querySelector('.unit').textContent = o && o.value ? o.dataset.unit : '';
+    tr.querySelector('.oh').textContent = o && o.value ? o.dataset.oh + ' ' + o.dataset.unit : '';
+  }
+  function addRow(rm, q){
+    var tr = tpl.content.firstElementChild.cloneNode(true);
+    tr.querySelector('.rm').value = rm || '';
+    if (q !== undefined && q !== null) tr.querySelector('.mq').value = q;
+    tr.querySelector('.rm').addEventListener('change', function(){ upd(tr); });
+    tr.querySelector('.rm-del').addEventListener('click', function(){ tr.remove(); });
+    body.appendChild(tr); upd(tr);
+  }
+  function fromBom(){
+    var o = product.selectedOptions[0], n = parseFloat(qty.value) || 0;
+    body.innerHTML = '';
+    if (!o || !o.value) return;
+    JSON.parse(o.dataset.bom || '[]').forEach(function(b){
+      addRow(b.rm, n ? Math.round(b.q * n * 1000) / 1000 : '');
+    });
+  }
+  function checkAu(){
+    var m = member.selectedOptions[0], p = product.selectedOptions[0], bad = false;
+    if (m && m.value && p && p.value) bad = JSON.parse(m.dataset.gis || '[]').indexOf(parseInt(p.dataset.gi)) < 0;
+    document.getElementById('au-warning').style.display = bad ? '' : 'none';
+  }
+  product.addEventListener('change', function(){
+    var o = product.selectedOptions[0]; if (o && o.value) rate.value = o.dataset.rate;
+    fromBom(); checkAu();
+  });
+  qty.addEventListener('input', function(){
+    var n = parseFloat(qty.value) || 0, o = product.selectedOptions[0];
+    if (!o || !o.value) return;
+    var bom = JSON.parse(o.dataset.bom || '[]');
+    Array.prototype.forEach.call(body.querySelectorAll('tr'), function(tr){
+      var rm = parseInt(tr.querySelector('.rm').value);
+      bom.forEach(function(b){ if (b.rm === rm) tr.querySelector('.mq').value = Math.round(b.q * n * 1000) / 1000; });
+    });
+  });
+  member.addEventListener('change', checkAu);
+  document.getElementById('add-row').addEventListener('click', function(){ addRow(); });
+  if (initial.length) initial.forEach(function(l){ addRow(l.rm, l.q); });
+  else if (product.value) fromBom();
+  checkAu();
+})();
+</script>
+{% endblock %}

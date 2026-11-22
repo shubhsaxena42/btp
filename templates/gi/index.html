@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('gi.title') }}{% endblock %}
+{% block content %}
+{{ ui.page_header(t('gi.title'), t('gi.subtitle')) }}
+<div class="kpi-grid">
+  {{ ui.kpi(t('gi.kpi_total'), kpi.total) }}
+  {{ ui.kpi(t('gi.kpi_registered'), kpi.registered, tone='success') }}
+  {{ ui.kpi(t('gi.kpi_with_products'), kpi.with_products, t('gi.kpi_with_products_sub'), tone='saffron') }}
+  {{ ui.kpi(t('gi.kpi_expiring'), kpi.expiring, tone='warning') }}
+</div>
+<form method="get" class="toolbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ t('gi.search_ph') }}">
+  <select name="category">
+    <option value="">{{ t('common.all') }} - {{ t('gi.category') }}</option>
+    {% for c in categories %}<option value="{{ c }}" {{ 'selected' if c == cat }}>{{ t('category.' ~ c) }}</option>{% endfor %}
+  </select>
+  <button class="btn btn-primary" type="submit">{{ t('common.filter') }}</button>
+</form>
+{% call ui.card() %}
+{% if gis %}
+<div style="overflow-x:auto">
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('common.name') }}</th><th>{{ t('gi.application_number') }}</th><th>{{ t('gi.category') }}</th>
+    <th>{{ t('gi.class') }}</th><th>{{ t('gi.certificate_number') }}</th><th>{{ t('gi.valid_upto') }}</th>
+    <th class="num">{{ t('gi.members') }}</th><th class="num">{{ t('gi.products') }}</th><th></th>
+  </tr></thead>
+  <tbody>
+  {% for g in gis %}
+  <tr class="row-link" onclick="location.href='{{ url_for('gi.detail', gi_id=g.id) }}'">
+    <td><strong>{{ L(g, 'name') }}</strong>{% if lang == 'hi' and g.name_hi %}<br><span class="muted">{{ g.name }}</span>{% endif %}</td>
+    <td class="nowrap">{{ g.application_number }}</td>
+    <td>{% if g.category %}{{ t('category.' ~ g.category) }}{% else %}—{% endif %}</td>
+    <td>{{ g['class'] or '—' }}</td>
+    <td>{{ g.certificate_number or '—' }}</td>
+    <td class="nowrap">{% if g.valid_upto %}{{ g.valid_upto|dmy }}
+      {% if g.tone == 'danger' %}{{ ui.badge(t('gi.expired'), 'danger') }}{% elif g.tone == 'warning' %}{{ ui.badge(t('gi.kpi_expiring'), 'warning') }}{% elif g.tone %}{{ ui.badge(t('status.active'), 'success') }}{% endif %}
+      {% else %}—{% endif %}</td>
+    <td class="num">{{ g.n_members|num }}</td>
+    <td class="num">{{ g.n_products|num }}</td>
+    <td><a class="btn btn-sm btn-outline" href="{{ url_for('gi.detail', gi_id=g.id) }}">{{ t('gi.view') }}</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+{% endblock %}

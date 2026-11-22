@@ -1,0 +1,18 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "app.py",
+            "use": "@vercel/python",
+            "config": {
+                "includeFiles": ["erp.db", "schema.sql", "templates/**", "static/**", "translations/**", "modules/**", "core/**", "data/**"]
+            }
+        }
+    ],
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "app.py"
+        }
+    ]
+}

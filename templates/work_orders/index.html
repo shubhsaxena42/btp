@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('work_orders.title') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('work_orders.title'), t('work_orders.subtitle')) %}
+  <a class="btn btn-primary" href="{{ url_for('work_orders.new') }}">+ {{ t('work_orders.new') }}</a>
+{% endcall %}
+
+<div class="kpi-grid">
+  {{ ui.kpi(t('work_orders.kpi_open'), kpi.open, tone='primary') }}
+  {{ ui.kpi(t('work_orders.kpi_overdue'), kpi.overdue, tone='danger' if kpi.overdue else 'success') }}
+  {{ ui.kpi(t('work_orders.kpi_completed'), kpi.completed, tone='success') }}
+  {{ ui.kpi(t('work_orders.kpi_wages'), kpi.wages|inr, tone='saffron') }}
+</div>
+
+<div class="tabs">
+  {% for s, label in [('issued', t('work_orders.tab_open')), ('completed', t('status.completed')), ('cancelled', t('status.cancelled')), ('all', t('common.all'))] %}
+  <a class="tab {{ 'active' if status == s }}" href="{{ url_for('work_orders.index', status=s, member_id=member_id, product_id=product_id) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<form method="get" class="toolbar">
+  <input type="hidden" name="status" value="{{ status }}">
+  <select name="member_id" onchange="this.form.submit()">
+    <option value="">{{ t('common.member') }}: {{ t('common.all') }}</option>
+    {% for m in members %}<option value="{{ m.id }}" {{ 'selected' if m.id == member_id }}>{{ L(m, 'name') }}</option>{% endfor %}
+  </select>
+  <select name="product_id" onchange="this.form.submit()">
+    <option value="">{{ t('common.product') }}: {{ t('common.all') }}</option>
+    {% for p in products %}<option value="{{ p.id }}" {{ 'selected' if p.id == product_id }}>{{ L(p, 'name') }}</option>{% endfor %}
+  </select>
+  <button class="btn btn-outline btn-sm" type="submit">{{ t('common.filter') }}</button>
+</form>
+
+<div class="card"><div class="card-body">
+{% if rows %}
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('work_orders.wo_no') }}</th><th>{{ t('common.member') }}</th><th>{{ t('common.product') }}</th>
+    <th class="num">{{ t('work_orders.ordered') }}</th><th class="num">{{ t('work_orders.received') }}</th>
+    <th>{{ t('work_orders.issued_on') }}</th><th>{{ t('work_orders.due_on') }}</th>
+    <th>{{ t('common.status') }}</th><th class="num">{{ t('work_orders.wage') }}</th><th>{{ t('common.batch') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for w in rows %}
+  <tr class="row-link" onclick="location.href='{{ url_for('work_orders.detail', wo_id=w.id) }}'">
+    <td class="nowrap"><a href="{{ url_for('work_orders.detail', wo_id=w.id) }}">{{ w.wo_no }}</a></td>
+    <td>{{ L({'name': w.member_name, 'name_hi': w.member_name_hi}, 'name') }}</td>
+    <td>{{ L({'name': w.product_name, 'name_hi': w.product_name_hi}, 'name') }}</td>
+    <td class="num">{{ w.qty_ordered|num }}</td>
+    <td class="num">{{ w.qty_received|num if w.qty_received is not none else '-' }}</td>
+    <td>{{ w.issued_on|dmy }}</td>
+    <td>{{ w.due_on|dmy }}
+      {% if w.status == 'issued' and w.due_on and w.due_on < today %}{{ ui.badge(t('status.overdue'), 'danger') }}{% endif %}</td>
+    <td>{{ ui.status_badge(w.status) }}</td>
+    <td class="num">{{ w.wage_amount|inr if w.status == 'completed' else '-' }}</td>
+    <td>{% if w.batch_id %}<a href="{{ safe_url('batches.detail', batch_id=w.batch_id) }}" onclick="event.stopPropagation()">{{ w.batch_no }}</a>{% else %}-{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty() }}{% endif %}
+</div></div>
+{% endblock %}

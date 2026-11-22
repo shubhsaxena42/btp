@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('customers.title') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('customers.title'), t('customers.subtitle')) %}
+  <a class="btn btn-primary" href="{{ url_for('customers.new') }}">{{ t('customers.add') }}</a>
+{% endcall %}
+<div class="kpi-grid">
+  {{ ui.kpi(t('customers.kpi_total'), kpi_total) }}
+  {{ ui.kpi(t('customers.kpi_outside'), kpi_outside, tone='saffron') }}
+  {{ ui.kpi(t('customers.kpi_receivable'), kpi_recv|inr, tone='danger' if kpi_recv > 0 else 'success') }}
+</div>
+<form class="toolbar" method="get">
+  <select name="type">
+    <option value="">{{ t('customers.all_types') }}</option>
+    {% for x in types %}<option value="{{ x }}" {{ 'selected' if x == f_type }}>{{ t('ctype.' ~ x) }}</option>{% endfor %}
+  </select>
+  <select name="state">
+    <option value="">{{ t('customers.all_states') }}</option>
+    {% for code, name in states %}<option value="{{ code }}" {{ 'selected' if code == f_state }}>{{ name }}</option>{% endfor %}
+  </select>
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ t('customers.search_ph') }}">
+  <button class="btn btn-outline" type="submit">{{ t('common.filter') }}</button>
+</form>
+{% call ui.card() %}
+{% if rows %}
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('common.code') }}</th><th>{{ t('common.name') }}</th><th>{{ t('customers.type') }}</th>
+    <th>{{ t('customers.city') }}</th><th>{{ t('customers.state') }}</th><th>{{ t('common.phone') }}</th>
+    <th class="num">{{ t('customers.invoiced') }}</th><th class="num">{{ t('customers.received') }}</th>
+    <th class="num">{{ t('customers.balance') }}</th><th></th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td class="nowrap">{{ r.code }}</td>
+    <td><a href="{{ url_for('customers.detail', customer_id=r.id) }}">{{ r.name }}</a></td>
+    <td>{{ ui.badge(t('ctype.' ~ r.type), 'info') }}</td>
+    <td>{{ r.city or '' }}</td><td>{{ r.state }}</td><td class="nowrap">{{ r.phone or '' }}</td>
+    <td class="num">{{ r.invoiced|inr }}</td><td class="num">{{ r.received|inr }}</td>
+    <td class="num">{% if r.balance > 0 %}<strong style="color:#b3261e">{{ r.balance|inr }}</strong>{% else %}{{ r.balance|inr }}{% endif %}</td>
+    <td><a class="btn btn-sm btn-outline" href="{{ url_for('customers.detail', customer_id=r.id) }}">{{ t('common.view') }}</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% endcall %}
+{% endblock %}

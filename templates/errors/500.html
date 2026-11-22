@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('error.500_title') }}{% endblock %}
+{% block content %}
+<div class="error-page">
+    <div class="error-code">500</div>
+    <h2>{{ t('error.500_title') }}</h2>
+    <p class="muted">{{ t('error.500_msg') }}</p>
+    <a class="btn btn-primary" href="{{ safe_url('dashboard.index') }}">{{ t('common.go_home') }}</a>
+</div>
+{% endblock %}

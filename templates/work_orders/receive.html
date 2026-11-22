@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('work_orders.receive_goods') }} - {{ wo.wo_no }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('work_orders.receive_goods') ~ ' - ' ~ wo.wo_no, L({'name': wo.product_name, 'name_hi': wo.product_name_hi}, 'name') ~ ' / ' ~ L({'name': wo.member_name, 'name_hi': wo.member_name_hi}, 'name')) %}
+  <a class="btn btn-outline" href="{{ url_for('work_orders.detail', wo_id=wo.id) }}">{{ t('common.back') }}</a>
+{% endcall %}
+<div class="alert alert-info">{{ t('work_orders.receive_note') }}</div>
+<form method="post" class="stack">
+<div class="card"><div class="card-body"><div class="form-grid">
+  <div class="form-row"><label>{{ t('work_orders.received_on') }} *</label>
+    <input type="date" name="received_on" value="{{ v.received_on }}" min="{{ wo.issued_on }}" required></div>
+  <div class="form-row"><label>{{ t('work_orders.qty_received') }} * (1 - {{ wo.qty_ordered|num }})</label>
+    <input type="number" name="qty_received" value="{{ v.qty }}" min="1" max="{{ wo.qty_ordered|int }}" step="1" required></div>
+</div>
+<div class="form-row"><label>{{ t('common.notes') }}</label><textarea name="notes" rows="2">{{ v.notes }}</textarea></div>
+</div></div>
+<div class="card"><div class="card-header">{{ t('work_orders.materials') }}</div><div class="card-body">
+<table class="lines-table">
+  <thead><tr><th>{{ t('common.raw_material') }}</th><th class="num">{{ t('work_orders.issued_qty') }}</th><th>{{ t('work_orders.qty_returned') }}</th></tr></thead>
+  <tbody>
+  {% for m in mats %}
+  <tr><td>{{ m.code }} - {{ L(m, 'name') }}</td>
+    <td class="num">{{ m.qty_issued|num }} {{ t('unit.' ~ m.unit) }}</td>
+    <td><input type="number" name="returned_{{ m.id }}" min="0" max="{{ m.qty_issued }}" step="any" value="{{ v.returned[m.id] }}"></td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+<div class="form-actions">
+  <button class="btn btn-success" type="submit">{{ t('common.submit') }}</button>
+  <a class="btn btn-outline" href="{{ url_for('work_orders.detail', wo_id=wo.id) }}">{{ t('common.cancel') }}</a>
+</div>
+</form>
+{% endblock %}

@@ -1,0 +1,85 @@
+{# Shared UI macros. Import with: {% import '_ui.html' as ui %} #}
+
+{% macro page_header(title, subtitle=None) %}
+<div class="page-header">
+    <div>
+        <h1>{{ title }}</h1>
+        {% if subtitle %}<p class="muted">{{ subtitle }}</p>{% endif %}
+    </div>
+    {% if caller is defined %}<div class="page-actions no-print">{{ caller() }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro card(title=None, tone='primary') %}
+<section class="card card-{{ tone }}">
+    {% if title %}<div class="card-header"><h3>{{ title }}</h3></div>{% endif %}
+    <div class="card-body">{% if caller is defined %}{{ caller() }}{% endif %}</div>
+</section>
+{% endmacro %}
+
+{% macro kpi(label, value, sub=None, tone='primary', href=None) %}
+{% if href %}<a class="kpi kpi-{{ tone }}" href="{{ href }}">{% else %}<div class="kpi kpi-{{ tone }}">{% endif %}
+    <div class="kpi-label">{{ label }}</div>
+    <div class="kpi-value">{{ value }}</div>
+    {% if sub %}<div class="kpi-sub">{{ sub }}</div>{% endif %}
+{% if href %}</a>{% else %}</div>{% endif %}
+{% endmacro %}
+
+{% macro badge(text, tone='neutral') %}<span class="badge badge-{{ tone }}">{{ text }}</span>{% endmacro %}
+
+{% macro status_badge(status) %}
+{%- set tones = {'pending': 'warning', 'approved': 'success', 'completed': 'success', 'paid': 'success',
+                 'settled': 'success', 'published': 'success', 'active': 'success',
+                 'rejected': 'danger', 'cancelled': 'danger', 'unpaid': 'danger', 'overdue': 'danger',
+                 'partial': 'info', 'issued': 'info', 'open': 'info', 'inactive': 'neutral'} -%}
+<span class="badge badge-{{ tones.get(status, 'neutral') }}">{{ t('status.' ~ status) }}</span>
+{%- endmacro %}
+
+{% macro field(name, label, value='', type='text', required=False, options=None, step=None, min=None,
+               help=None, placeholder=None, attrs='') %}
+{% if type == 'hidden' %}
+<input type="hidden" name="{{ name }}" value="{{ value if value is not none else '' }}">
+{% else %}
+<div class="form-row{{ ' form-row-wide' if type == 'textarea' }}">
+    <label for="f-{{ name }}">{{ label }}{% if required %} <span class="req">*</span>{% endif %}</label>
+    {% if type == 'textarea' %}
+    <textarea id="f-{{ name }}" name="{{ name }}" rows="3" {% if required %}required{% endif %}
+              {% if placeholder %}placeholder="{{ placeholder }}"{% endif %} {{ attrs|safe }}>{{ value if value is not none else '' }}</textarea>
+    {% elif type == 'select' %}
+    <select id="f-{{ name }}" name="{{ name }}" {% if required %}required{% endif %} {{ attrs|safe }}>
+        {% if not required or value in ('', none) %}<option value="">{{ t('common.select') }}</option>{% endif %}
+        {% for ov, ol in (options or []) %}
+        <option value="{{ ov }}" {% if value is not none and value != '' and (value|string) == (ov|string) %}selected{% endif %}>{{ ol }}</option>
+        {% endfor %}
+    </select>
+    {% else %}
+    <input id="f-{{ name }}" type="{{ type }}" name="{{ name }}" value="{{ value if value is not none else '' }}"
+           {% if required %}required{% endif %}
+           {% if step is not none %}step="{{ step }}"{% endif %}
+           {% if min is not none %}min="{{ min }}"{% endif %}
+           {% if placeholder %}placeholder="{{ placeholder }}"{% endif %} {{ attrs|safe }}>
+    {% endif %}
+    {% if help %}<small class="muted">{{ help }}</small>{% endif %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro empty(message=None) %}
+<div class="empty-state">{{ message or t('common.none_found') }}</div>
+{% endmacro %}
+
+{% macro bar_chart(rows, value_format='inr') %}
+{%- set vals = rows | map(attribute=1) | list -%}
+{%- set mx = (vals | max) if vals else 0 -%}
+<div class="bar-chart">
+    {% for label, value in rows %}
+    <div class="bar-row">
+        <div class="bar-label" title="{{ label }}">{{ label }}</div>
+        <div class="bar-track"><div class="bar-fill" style="width: {{ ((value / mx * 100) if mx else 0)|round(1) }}%"></div></div>
+        <div class="bar-value">{{ value|inr0 if value_format == 'inr' else value|num }}</div>
+    </div>
+    {% else %}
+    <div class="empty-state">{{ t('common.none_found') }}</div>
+    {% endfor %}
+</div>
+{% endmacro %}

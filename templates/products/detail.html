@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ L(p, 'name') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(L(p, 'name'), p.sku) %}
+  <a class="btn btn-primary" href="{{ url_for('products.edit', product_id=p.id) }}">{{ t('common.edit') }}</a>
+  <a class="btn btn-outline" href="{{ url_for('products.index') }}">{{ t('common.back') }}</a>
+{% endcall %}
+
+<div class="kpi-grid">
+  {{ ui.kpi(t('products.sellable'), stock.qty_sellable|num, t('unit.' ~ p.unit), 'success') }}
+  {{ ui.kpi(t('products.pending'), stock.qty_pending|num, t('unit.' ~ p.unit), 'warning') }}
+  {{ ui.kpi(t('products.at_outlets'), stock.qty_at_outlets|num, t('unit.' ~ p.unit), 'primary') }}
+</div>
+
+<div class="grid-2">
+  {% call ui.card(t('products.info')) %}
+  <table class="details-table">
+    <tr><th>{{ t('common.gi') }}</th><td><a href="{{ safe_url('gi.detail', gi_id=p.gi_id) }}">{{ p.gi_name_hi if lang == 'hi' and p.gi_name_hi else p.gi_name }}</a></td></tr>
+    <tr><th>{{ t('common.unit') }}</th><td>{{ t('unit.' ~ p.unit) }}</td></tr>
+    <tr><th>{{ t('common.hsn') }}</th><td>{{ p.hsn or '-' }}</td></tr>
+    <tr><th>{{ t('products.price_excl') }}</th><td>{{ p.price|inr }}</td></tr>
+    <tr><th>{{ t('products.gst_pct') }}</th><td>{{ p.gst_rate|num }}%</td></tr>
+    <tr><th>{{ t('products.price_incl') }}</th><td>{{ (p.price * (1 + p.gst_rate / 100))|inr }}</td></tr>
+    <tr><th>{{ t('products.piece_rate') }}</th><td>{{ p.piece_rate|inr }}</td></tr>
+    <tr><th>{{ t('products.shelf_life') }}</th><td>{{ p.shelf_life_days if p.shelf_life_days else '-' }}</td></tr>
+    <tr><th>{{ t('common.status') }}</th><td>{{ ui.status_badge('active' if p.active else 'inactive') }}</td></tr>
+    {% set d = L(p, 'description') %}
+    {% if d %}<tr><th>{{ t('common.description') }}</th><td>{{ d }}</td></tr>{% endif %}
+  </table>
+  {% endcall %}
+
+  {% call ui.card(t('products.bom')) %}
+  {% if bom %}
+  <table class="data-table">
+    <thead><tr><th>{{ t('common.raw_material') }}</th><th class="num">{{ t('products.qty_per_unit') }}</th>
+      <th class="num">{{ t('products.cost_per_unit') }}</th><th class="num">{{ t('products.line_cost') }}</th></tr></thead>
+    <tbody>
+    {% for r in bom %}
+      <tr><td>{{ L(r, 'name') }}</td><td class="num">{{ r.qty_per_unit|num }} {{ t('unit.' ~ r.unit) }}</td>
+        <td class="num">{{ r.cost_per_unit|inr }}</td><td class="num">{{ r.cost|inr }}</td></tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><th colspan="3">{{ t('products.total_material_cost') }}</th><th class="num">{{ bom_cost|inr }}</th></tr></tfoot>
+  </table>
+  {% else %}{{ ui.empty(t('products.no_bom')) }}{% endif %}
+  {% endcall %}
+</div>
+
+{% call ui.card(t('products.fp_title')) %}
+<div id="fair-price">
+<p class="muted">{{ t('products.fp_help') }}</p>
+<form method="post" action="{{ url_for('products.save_pricing', product_id=p.id) }}" id="fp-form">
+  <div class="grid-2">
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="fp_material">{{ t('products.fp_material') }}</label>
+        <input type="number" step="0.01" min="0" id="fp_material" name="material_cost" value="{{ p.material_cost }}">
+        <button type="button" class="btn btn-sm btn-outline" id="fp_use_bom" data-cost="{{ '%.2f'|format(bom_cost) }}">{{ t('products.fp_use_bom') }}</button>
+      </div>
+      <div class="form-row">
+        <label for="fp_hours">{{ t('products.fp_hours') }}</label>
+        <input type="number" step="0.01" min="0" id="fp_hours" name="labour_hours" value="{{ p.labour_hours }}">
+      </div>
+      <div class="form-row">
+        <label for="fp_rate">{{ t('products.fp_rate') }}</label>
+        <input type="number" step="0.01" min="0" id="fp_rate" name="labour_rate" value="{{ p.labour_rate }}">
+      </div>
+      <div class="form-row">
+        <label for="fp_overhead">{{ t('products.fp_overhead') }}</label>
+        <input type="number" step="0.01" min="0" id="fp_overhead" name="overhead_pct" value="{{ p.overhead_pct }}">
+      </div>
+      <div class="form-row">
+        <label for="fp_margin">{{ t('products.fp_margin') }}</label>
+        <input type="number" step="0.01" min="0" id="fp_margin" name="margin_pct" value="{{ p.margin_pct }}">
+      </div>
+    </div>
+    <div>
+      <table class="details-table">
+        <tr><th>{{ t('products.fp_labour') }}</th><td id="o_labour">{{ calc.labour|inr }}</td></tr>
+        <tr><th>{{ t('products.fp_base') }}</th><td id="o_base">{{ calc.base|inr }}</td></tr>
+        <tr><th>{{ t('products.fp_overhead_amt') }}</th><td id="o_overhead">{{ calc.overhead|inr }}</td></tr>
+        <tr><th>{{ t('products.fp_total') }}</th><td id="o_total">{{ calc.total|inr }}</td></tr>
+        <tr><th><strong>{{ t('products.fp_fair') }}</strong></th><td><strong id="o_fair">{{ calc.fair|inr }}</strong></td></tr>
+        <tr><th>{{ t('products.fp_fair_incl') }}</th><td id="o_incl">{{ calc.incl|inr }}</td></tr>
+        <tr><th>{{ t('products.fp_current') }}</th><td>{{ p.price|inr }}</td></tr>
+        <tr><th>{{ t('common.status') }}</th><td id="o_verdict">
+          {% if calc.verdict == 'below' %}{{ ui.badge(t('products.fp_below', amount='{:,.2f}'.format(calc.diff)), 'danger') }}
+          {% elif calc.verdict == 'within' %}{{ ui.badge(t('products.fp_within'), 'success') }}
+          {% else %}{{ ui.badge(t('products.fp_above'), 'info') }}{% endif %}
+        </td></tr>
+        <tr><th>{{ t('products.fp_share') }}</th><td id="o_share">{{ '%.1f'|format(calc.share) }}%</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit" name="action" value="save">{{ t('products.fp_save') }}</button>
+    <button class="btn btn-saffron" type="submit" name="action" value="apply">{{ t('products.fp_apply') }}</button>
+  </div>
+</form>
+</div>
+{% endcall %}
+
+{% call ui.card(t('products.stock_by_batch')) %}
+{% if batches %}
+<table class="data-table">
+  <thead><tr><th>{{ t('products.batch_no') }}</th><th>{{ t('products.mfg') }}</th><th>{{ t('products.expiry') }}</th>
+    <th>{{ t('common.status') }}</th><th class="num">{{ t('products.qty_made') }}</th><th class="num">{{ t('products.on_hand') }}</th></tr></thead>
+  <tbody>
+  {% for b in batches %}
+    <tr><td><a href="{{ safe_url('batches.detail', batch_id=b.id) }}">{{ b.batch_no }}</a></td>
+      <td>{{ b.mfg_date|dmy }}</td><td>{{ b.expiry_date|dmy or '-' }}</td>
+      <td>{{ ui.status_badge(b.status) }}</td>
+      <td class="num">{{ b.qty|num }}</td><td class="num">{{ b.qty_on_hand|num }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty(t('products.no_batches')) }}{% endif %}
+{% endcall %}
+
+{% call ui.card(t('products.recent_sales')) %}
+{% if sales %}
+<table class="data-table">
+  <thead><tr><th>{{ t('products.invoice') }}</th><th>{{ t('common.date') }}</th><th>{{ t('products.customer') }}</th>
+    <th>{{ t('common.batch') }}</th><th class="num">{{ t('common.qty') }}</th><th class="num">{{ t('common.rate') }}</th><th class="num">{{ t('common.amount') }}</th></tr></thead>
+  <tbody>
+  {% for s in sales %}
+    <tr><td><a href="{{ safe_url('sales.detail', sale_id=s.sale_id) }}">{{ s.invoice_no }}</a></td>
+      <td>{{ s.date|dmy }}</td><td>{{ s.customer_name }}</td><td>{{ s.batch_no or '-' }}</td>
+      <td class="num">{{ s.qty|num }}</td><td class="num">{{ s.rate|inr }}</td><td class="num">{{ s.amount|inr }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty(t('products.no_sales')) }}{% endif %}
+{% endcall %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var gst = {{ p.gst_rate|float|tojson }}, price = {{ p.price|float|tojson }};
+  var msgBelow = {{ t('products.fp_below', amount='__AMT__')|tojson }};
+  var msgWithin = {{ t('products.fp_within')|tojson }};
+  var msgAbove = {{ t('products.fp_above')|tojson }};
+  function $(id) { return document.getElementById(id); }
+  function v(id) { var x = parseFloat($(id).value); return isNaN(x) ? 0 : x; }
+  function inr(x) { return '₹' + x.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+  function badge(text, tone) {
+    var s = document.createElement('span'); s.className = 'badge badge-' + tone; s.textContent = text; return s;
+  }
+  function calc() {
+    var labour = v('fp_hours') * v('fp_rate');
+    var base = v('fp_material') + labour;
+    var overhead = base * v('fp_overhead') / 100;
+    var total = base + overhead;
+    var fair = total * (1 + v('fp_margin') / 100);
+    var diff = fair - price;
+    $('o_labour').textContent = inr(labour);
+    $('o_base').textContent = inr(base);
+    $('o_overhead').textContent = inr(overhead);
+    $('o_total').textContent = inr(total);
+    $('o_fair').textContent = inr(fair);
+    $('o_incl').textContent = inr(fair * (1 + gst / 100));
+    $('o_share').textContent = (price ? labour / price * 100 : 0).toFixed(1) + '%';
+    var box = $('o_verdict'); box.textContent = '';
+    if (fair > 0 && Math.abs(diff) <= 0.05 * fair) box.appendChild(badge(msgWithin, 'success'));
+    else if (diff > 0) box.appendChild(badge(msgBelow.replace('__AMT__', diff.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})), 'danger'));
+    else box.appendChild(badge(msgAbove, 'info'));
+  }
+  ['fp_material', 'fp_hours', 'fp_rate', 'fp_overhead', 'fp_margin'].forEach(function (id) {
+    $(id).addEventListener('input', calc);
+  });
+  $('fp_use_bom').addEventListener('click', function () {
+    $('fp_material').value = this.getAttribute('data-cost'); calc();
+  });
+})();
+</script>
+{% endblock %}

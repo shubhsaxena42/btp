@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('gi.edit_title') }} - {{ L(g, 'name') }}{% endblock %}
+{% block content %}
+{{ ui.page_header(t('gi.edit_title'), g.name) }}
+<form method="post">
+  {% call ui.card(t('gi.registry_details')) %}
+  <div class="alert alert-info">{{ t('gi.registry_note') }}</div>
+  <table class="details-table">
+    {% for label, val in [(t('gi.application_number'), g.application_number), (t('common.name'), g.name), (t('gi.category'), t('category.' ~ g.category) if g.category else ''), (t('gi.applicant_name'), g.applicant_name), (t('gi.class'), g['class']), (t('gi.goods'), g.goods), (t('gi.certificate_number'), g.certificate_number), (t('gi.valid_upto'), g.valid_upto|dmy), (t('common.status'), g.status)] %}
+    <tr><th>{{ label }}</th><td>{{ val if val else '—' }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endcall %}
+  {% call ui.card(t('common.edit')) %}
+  <div class="form-grid">
+    {{ ui.field('name_hi', t('gi.name_hi'), form.name_hi) }}
+  </div>
+  <div class="form-grid">
+    {{ ui.field('description', t('gi.description_en'), form.description, type='textarea') }}
+    {{ ui.field('description_hi', t('gi.description_hi'), form.description_hi, type='textarea') }}
+  </div>
+  {% endcall %}
+  {% call ui.card(t('gi.checklist')) %}
+  <p class="muted">{{ t('gi.checklist_help') }}</p>
+  <table class="lines-table" id="checks">
+    <thead><tr><th>{{ t('gi.check_en') }}</th><th>{{ t('gi.check_hi') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for c in (checklist or [{'en': '', 'hi': ''}]) %}
+    <tr><td><input type="text" name="check_en" value="{{ c.en }}"></td>
+        <td><input type="text" name="check_hi" value="{{ c.hi }}"></td>
+        <td><button type="button" class="btn btn-sm btn-danger" onclick="rmCheck(this)">{{ t('gi.remove') }}</button></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p><button type="button" class="btn btn-sm btn-outline" onclick="addCheck()">{{ t('gi.add_check') }}</button></p>
+  {% endcall %}
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ t('common.save') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('gi.detail', gi_id=g.id) }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+function addCheck(){
+  var tb=document.querySelector('#checks tbody'), r=tb.rows[tb.rows.length-1].cloneNode(true);
+  r.querySelectorAll('input').forEach(function(i){i.value='';});
+  tb.appendChild(r);
+}
+function rmCheck(b){
+  var tb=document.querySelector('#checks tbody'), r=b.closest('tr');
+  if(tb.rows.length>1){r.remove();}else{r.querySelectorAll('input').forEach(function(i){i.value='';});}
+}
+</script>
+{% endblock %}

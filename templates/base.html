@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ t('app.title') }}{% endblock %} | {{ t('app.title') }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/iit-logo.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/erp.css') }}">
+</head>
+<body class="lang-{{ lang }}">
+    <header class="gov-header">
+        <div class="header-content">
+            <a class="logo-section" href="{{ safe_url('dashboard.index') }}">
+                <img src="{{ url_for('static', filename='img/iit-logo.png') }}" alt="IIT Roorkee" class="iit-logo">
+            </a>
+            <div class="header-right">
+                <div class="header-text">
+                    <h1>{{ t('app.title') }}</h1>
+                    {% set org_name = (org.get('org_name_hi') if lang == 'hi' and org.get('org_name_hi') else org.get('org_name')) %}
+                    {% if org_name %}<h2>{{ org_name }}</h2>{% endif %}
+                </div>
+                <div class="lang-toggle no-print">
+                    <a href="{{ url_for('set_lang', code='en') }}" class="{{ 'active' if lang == 'en' }}">EN</a>
+                    <span>|</span>
+                    <a href="{{ url_for('set_lang', code='hi') }}" class="{{ 'active' if lang == 'hi' }}">हिन्दी</a>
+                </div>
+            </div>
+        </div>
+        <div class="header-strip"></div>
+    </header>
+
+    {% set bp = request.blueprint %}
+    {% set ep = request.endpoint %}
+    {% set nav_items = [
+        ('dashboard.index', 'dashboard', 'nav.dashboard'),
+        ('gi.index', 'gi', 'nav.gi'),
+        ('members.index', 'members', 'nav.members'),
+        ('products.index', 'products', 'nav.products'),
+        ('purchases.index', 'purchases', 'nav.purchases'),
+        ('inventory.index', 'inventory', 'nav.inventory'),
+        ('work_orders.index', 'work_orders', 'nav.work_orders'),
+        ('batches.index', 'batches', 'nav.batches'),
+        ('sales.index', 'sales', 'nav.sales'),
+        ('consignments.index', 'consignments', 'nav.consignments'),
+        ('customers.index', 'customers', 'nav.customers'),
+        ('batches.portal', 'portal', 'nav.portal'),
+    ] %}
+    <nav class="gov-nav no-print" aria-label="Main">
+        <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="nav-list">&#9776; {{ t('common.menu') }}</button>
+        <ul id="nav-list">
+            {% for endpoint, key, label in nav_items %}
+            {% if key == 'portal' %}{% set active = (ep == 'batches.portal') %}
+            {% elif key == 'batches' %}{% set active = (bp == 'batches' and ep != 'batches.portal') %}
+            {% else %}{% set active = (bp == key) %}{% endif %}
+            <li><a href="{{ safe_url(endpoint) }}" class="{{ 'active' if active }}">{{ t(label) }}</a></li>
+            {% endfor %}
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }}">{{ message }}</div>
+            {% endfor %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="gov-footer">
+        <p>{{ t('app.footer1') }}</p>
+        <p>{{ t('app.footer2') }}</p>
+    </footer>
+    <script>
+    (function () {
+        var b = document.getElementById('nav-toggle'), l = document.getElementById('nav-list');
+        if (!b || !l) return;
+        b.addEventListener('click', function () {
+            var o = l.classList.toggle('open');
+            b.setAttribute('aria-expanded', o ? 'true' : 'false');
+        });
+    })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

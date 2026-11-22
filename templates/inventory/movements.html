@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('inventory.movements') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('inventory.movements')) %}
+  <a class="btn btn-outline" href="{{ url_for('inventory.index') }}">{{ t('common.back') }}</a>
+{% endcall %}
+
+<form method="get" class="toolbar">
+  <select name="item_type">
+    <option value="">{{ t('inventory.item_type') }}: {{ t('common.all') }}</option>
+    <option value="raw" {{ 'selected' if f.item_type == 'raw' }}>{{ t('inventory.type_raw') }}</option>
+    <option value="product" {{ 'selected' if f.item_type == 'product' }}>{{ t('inventory.type_product') }}</option>
+  </select>
+  <select name="ref_type">
+    <option value="">{{ t('inventory.ref_type') }}: {{ t('common.all') }}</option>
+    {% for r in ref_types %}<option value="{{ r }}" {{ 'selected' if f.ref_type == r }}>{{ t('ref.' ~ r) }}</option>{% endfor %}
+  </select>
+  <select name="raw_material_id">
+    <option value="">{{ t('common.raw_material') }}: {{ t('common.all') }}</option>
+    {% for m in materials %}<option value="{{ m.id }}" {{ 'selected' if f.raw_material_id == m.id }}>{{ L(m, 'name') }}</option>{% endfor %}
+  </select>
+  <select name="product_id">
+    <option value="">{{ t('common.product') }}: {{ t('common.all') }}</option>
+    {% for p in products %}<option value="{{ p.id }}" {{ 'selected' if f.product_id == p.id }}>{{ L(p, 'name') }}</option>{% endfor %}
+  </select>
+  <label>{{ t('inventory.date_from') }} <input type="date" name="date_from" value="{{ f.date_from }}"></label>
+  <label>{{ t('inventory.date_to') }} <input type="date" name="date_to" value="{{ f.date_to }}"></label>
+  <button class="btn btn-primary" type="submit">{{ t('common.filter') }}</button>
+  <a class="btn btn-outline" href="{{ url_for('inventory.movements') }}">{{ t('common.cancel') }}</a>
+</form>
+
+{% call ui.card() %}
+{% if rows %}
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('common.date') }}</th><th>{{ t('inventory.item') }}</th><th>{{ t('inventory.ref_type') }}</th>
+    <th>{{ t('inventory.reference') }}</th><th class="num">{{ t('inventory.qty_in') }}</th>
+    <th class="num">{{ t('inventory.qty_out') }}</th><th>{{ t('common.notes') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    {% set rt = r.ref_type %}
+    <tr>
+      <td class="nowrap">{{ r.date|dmy }}</td>
+      <td>{% if r.item_type == 'raw' %}{{ r.rm_name_hi if lang == 'hi' and r.rm_name_hi else r.rm_name }}
+          {% else %}{{ r.p_name_hi if lang == 'hi' and r.p_name_hi else r.p_name }}
+            {% if r.batch_no %}<div class="muted"><a href="{{ safe_url('batches.detail', batch_id=r.batch_id) }}">{{ r.batch_no }}</a></div>{% endif %}
+          {% endif %}</td>
+      <td>{{ t('ref.' ~ rt) }}</td>
+      <td>
+        {% if rt == 'purchase' %}<a href="{{ safe_url('purchases.index') }}">#{{ r.ref_id }}</a>
+        {% elif rt in ('wo_issue', 'wo_return') and r.ref_id %}<a href="{{ safe_url('work_orders.detail', wo_id=r.ref_id) }}">#{{ r.ref_id }}</a>
+        {% elif rt == 'production' and r.batch_id %}<a href="{{ safe_url('batches.detail', batch_id=r.batch_id) }}">{{ r.batch_no }}</a>
+        {% elif rt == 'sale' and r.ref_id %}<a href="{{ safe_url('sales.detail', sale_id=r.ref_id) }}">#{{ r.ref_id }}</a>
+        {% elif rt in ('consignment_out', 'consignment_return') and r.ref_id %}<a href="{{ safe_url('consignments.detail', cn_id=r.ref_id) }}">#{{ r.ref_id }}</a>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td class="num" style="color:#1a7a3b">{% if r.qty > 0 %}+{{ r.qty|num }}{% endif %}</td>
+      <td class="num" style="color:#b3261e">{% if r.qty < 0 %}{{ r.qty|num }}{% endif %}</td>
+      <td>{{ r.note or '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if pages > 1 %}
+<div class="toolbar">
+  {% if page > 1 %}<a class="btn btn-sm btn-outline" href="{{ url_for('inventory.movements', page=page-1, **qs) }}">{{ t('inventory.prev') }}</a>{% endif %}
+  <span class="muted">{{ t('inventory.page_of', page=page, pages=pages, total=total) }}</span>
+  {% if page < pages %}<a class="btn btn-sm btn-outline" href="{{ url_for('inventory.movements', page=page+1, **qs) }}">{{ t('inventory.next') }}</a>{% endif %}
+</div>
+{% endif %}
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('sales.title') }}{% endblock %}
+{% block content %}
+<div class="container stack">
+  {% call ui.page_header(t('sales.title'), t('sales.subtitle')) %}
+    <a class="btn btn-primary" href="{{ url_for('sales.new') }}">+ {{ t('sales.new_invoice') }}</a>
+    <a class="btn btn-outline" href="{{ url_for('sales.payments') }}">{{ t('sales.payments') }}</a>
+  {% endcall %}
+
+  <div class="kpi-grid">
+    {{ ui.kpi(t('sales.kpi_month_sales'), kpi.month_sales|inr, tone='success') }}
+    {{ ui.kpi(t('sales.kpi_month_invoices'), kpi.month_count|num) }}
+    {{ ui.kpi(t('sales.kpi_outstanding'), kpi.outstanding|inr, tone='warning') }}
+    {{ ui.kpi(t('sales.kpi_avg'), kpi.avg|inr, tone='saffron') }}
+  </div>
+
+  <form method="get" class="toolbar">
+    <input type="text" name="search" value="{{ f.search }}" placeholder="{{ t('sales.search_ph') }}">
+    <select name="customer">
+      <option value="">{{ t('common.customer') }}: {{ t('common.all') }}</option>
+      {% for c in customers %}<option value="{{ c.id }}" {{ 'selected' if f.customer == c.id }}>{{ c.name }}</option>{% endfor %}
+    </select>
+    <select name="channel">
+      <option value="">{{ t('sales.channel') }}: {{ t('common.all') }}</option>
+      {% for c in channels %}<option value="{{ c }}" {{ 'selected' if f.channel == c }}>{{ t('channel.' ~ c) }}</option>{% endfor %}
+    </select>
+    <select name="pay_status">
+      <option value="">{{ t('sales.pay_status') }}: {{ t('common.all') }}</option>
+      {% for s in pay_statuses %}<option value="{{ s }}" {{ 'selected' if f.pay_status == s }}>{{ t('status.' ~ s) }}</option>{% endfor %}
+    </select>
+    <input type="month" name="month" value="{{ f.month }}">
+    <button class="btn btn-outline" type="submit">{{ t('common.filter') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('sales.index') }}">{{ t('common.all') }}</a>
+  </form>
+
+  {% call ui.card() %}
+  {% if rows %}
+  <div style="overflow-x:auto">
+  <table class="data-table">
+    <thead><tr>
+      <th>{{ t('sales.invoice_no') }}</th><th>{{ t('common.date') }}</th><th>{{ t('sales.customer') }}</th>
+      <th>{{ t('sales.channel') }}</th><th class="num">{{ t('common.total') }}</th>
+      <th class="num">{{ t('common.paid') }}</th><th class="num">{{ t('common.due') }}</th><th>{{ t('common.status') }}</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="row-link" onclick="location.href='{{ url_for('sales.detail', sale_id=r.id) }}'">
+        <td class="nowrap"><a href="{{ url_for('sales.detail', sale_id=r.id) }}">{{ r.invoice_no }}</a></td>
+        <td class="nowrap">{{ r.date|dmy }}</td>
+        <td><a href="{{ safe_url('customers.detail', customer_id=r.customer_id) }}" onclick="event.stopPropagation()">{{ r.customer_name }}</a></td>
+        <td>{{ t('channel.' ~ r.channel) }}{% if r.venue %} <span class="muted">({{ r.venue }})</span>{% endif %}</td>
+        <td class="num">{{ r.total|inr }}</td>
+        <td class="num">{{ r.paid|inr }}</td>
+        <td class="num">{{ r.due|inr }}</td>
+        <td>{{ ui.status_badge(r.pay_status) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr>
+      <th colspan="4">{{ t('sales.totals') }} ({{ rows|length }})</th>
+      <th class="num">{{ tot.total|inr }}</th><th class="num">{{ tot.paid|inr }}</th><th class="num">{{ tot.due|inr }}</th><th></th>
+    </tr></tfoot>
+  </table>
+  </div>
+  {% else %}{{ ui.empty() }}{% endif %}
+  {% endcall %}
+</div>
+{% endblock %}

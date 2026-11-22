@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('batches.portal_title') }}{% endblock %}
+{% block content %}
+{{ ui.page_header(t('batches.portal_title'), t('batches.portal_intro')) }}
+{% call ui.card(t('batches.published_rows')) %}
+<div class="form-actions" style="margin-bottom:1rem">
+  <a class="btn btn-primary" href="{{ url_for('batches.portal_xlsx') }}">{{ t('batches.download_all') }}</a>
+</div>
+{% if pub %}
+<div style="overflow-x:auto"><table class="data-table">
+  <thead><tr><th>{{ t('batches.app_no') }}</th><th>{{ t('common.product') }}</th><th>{{ t('common.gi') }}</th>
+    <th>{{ t('batches.serial_range') }}</th><th>{{ t('batches.batch_no') }}</th>
+    <th>{{ t('batches.mfg_date') }}</th><th>{{ t('batches.expiry') }}</th><th>{{ t('batches.published_date') }}</th></tr></thead>
+  <tbody>
+  {% for r in pub %}
+  <tr><td class="nowrap">{{ r.application_number }}</td>
+    <td>{{ L({'name': r.product_name, 'name_hi': r.product_name_hi}, 'name') }}</td>
+    <td>{{ L({'name': r.gi_name, 'name_hi': r.gi_name_hi}, 'name') }}</td>
+    <td class="nowrap">{{ r.serial_from }} to {{ r.serial_to }}</td>
+    <td><a href="{{ url_for('batches.detail', batch_id=r.id) }}">{{ r.batch_no }}</a></td>
+    <td class="nowrap">{{ r.mfg_date|dmy }}</td><td class="nowrap">{{ r.expiry_date|dmy }}</td>
+    <td class="nowrap">{{ r.published_on|dmy }}</td></tr>
+  {% endfor %}
+  </tbody></table></div>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+
+{% call ui.card(t('batches.unpublished'), 'saffron') %}
+{% if unpub %}
+<table class="data-table">
+  <thead><tr><th>{{ t('batches.batch_no') }}</th><th>{{ t('common.product') }}</th><th>{{ t('batches.mfg_date') }}</th><th class="num">{{ t('batches.qty_made') }}</th><th></th></tr></thead>
+  <tbody>
+  {% for r in unpub %}
+  <tr><td><a href="{{ url_for('batches.detail', batch_id=r.id) }}">{{ r.batch_no }}</a></td>
+    <td>{{ L({'name': r.product_name, 'name_hi': r.product_name_hi}, 'name') }}</td>
+    <td class="nowrap">{{ r.mfg_date|dmy }}</td><td class="num">{{ r.qty|num }}</td>
+    <td class="text-right"><form method="post" action="{{ url_for('batches.publish', batch_id=r.id) }}" style="display:inline">
+      <input type="hidden" name="next" value="portal">
+      <button class="btn btn-success btn-sm" type="submit">{{ t('batches.publish') }}</button></form></td></tr>
+  {% endfor %}
+  </tbody></table>
+{% else %}<p class="muted">{{ t('batches.none_unpublished') }}</p>{% endif %}
+{% endcall %}
+{% endblock %}

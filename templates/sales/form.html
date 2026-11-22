@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('sales.new_invoice') }}{% endblock %}
+{% block content %}
+<div class="container stack">
+  {% call ui.page_header(t('sales.new_invoice'), t('sales.subtitle')) %}
+    <a class="btn btn-outline" href="{{ url_for('sales.index') }}">{{ t('common.back') }}</a>
+  {% endcall %}
+  <form method="post" id="sale-form" class="stack">
+    {% call ui.card(t('sales.invoice')) %}
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="date">{{ t('common.date') }}</label>
+          <input type="date" id="date" name="date" value="{{ f.date }}" required>
+        </div>
+        <div class="form-row">
+          <label for="customer_id">{{ t('sales.customer') }}</label>
+          <select id="customer_id" name="customer_id" required>
+            <option value="">{{ t('common.select') }}</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}" data-state="{{ c.state }}" data-code="{{ c.state_code }}" {{ 'selected' if f.customer_id == c.id }}>{{ c.name }}{% if c.city %} - {{ c.city }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          <small class="muted"><span id="tax-hint"></span>
+            <a href="{{ safe_url('customers.new') }}">+ {{ t('sales.add_customer') }}</a></small>
+        </div>
+        <div class="form-row">
+          <label for="channel">{{ t('sales.channel') }}</label>
+          <select id="channel" name="channel">
+            {% for c in channels %}<option value="{{ c }}" {{ 'selected' if f.channel == c }}>{{ t('channel.' ~ c) }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-row" id="venue-row" style="display:none">
+          <label for="venue">{{ t('sales.venue') }}</label>
+          <input type="text" id="venue" name="venue" value="{{ f.venue }}">
+        </div>
+      </div>
+    {% endcall %}
+
+    {% call ui.card(t('sales.items')) %}
+      <div style="overflow-x:auto">
+      <table class="lines-table" id="lines">
+        <thead><tr>
+          <th>{{ t('sales.product') }}</th><th class="num">{{ t('common.qty') }}</th>
+          <th class="num">{{ t('common.rate') }}</th><th class="num">{{ t('common.amount') }}</th><th></th>
+        </tr></thead>
+        <tbody>
+        {% for l in lines %}
+          <tr class="line">
+            <td>
+              <select name="product_id[]" class="p-sel">
+                <option value="">{{ t('common.select') }}</option>
+                {% for p in products %}
+                <option value="{{ p.id }}" data-price="{{ p.price }}" data-gst="{{ p.gst_rate }}" data-stock="{{ '%g'|format(p.sellable) }}" data-unit="{{ t('unit.' ~ p.unit) }}" {{ 'selected' if l.product_id|string == p.id|string }}>{{ L(p, 'name') }} ({{ p.sku }})</option>
+                {% endfor %}
+              </select>
+              <small class="muted stock-note"></small>
+            </td>
+            <td class="num"><input type="number" name="qty[]" min="1" step="1" inputmode="numeric" value="{{ l.qty or '' }}" class="q-in" style="width:90px"></td>
+            <td class="num"><input type="number" name="rate[]" min="0" step="0.01" value="{{ l.rate or '' }}" class="r-in" style="width:110px"></td>
+            <td class="num line-amt">0.00</td>
+            <td><button type="button" class="btn btn-sm btn-outline rm-row">{{ t('sales.remove') }}</button></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <p><button type="button" class="btn btn-outline btn-sm" id="add-row">+ {{ t('sales.add_row') }}</button></p>
+      <table class="details-table" style="max-width:360px;margin-left:auto">
+        <tr><th>{{ t('sales.subtotal') }}</th><td class="num" id="t-sub">0.00</td></tr>
+        <tr><th>{{ t('sales.gst_total') }}</th><td class="num" id="t-gst">0.00</td></tr>
+        <tr><th>{{ t('sales.grand_total') }}</th><td class="num"><strong id="t-total">0.00</strong></td></tr>
+      </table>
+    {% endcall %}
+
+    {% call ui.card(t('sales.pay_now')) %}
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="pay_amount">{{ t('sales.pay_amount') }}</label>
+          <input type="number" id="pay_amount" name="pay_amount" min="0" step="0.01" value="{{ f.pay_amount }}">
+        </div>
+        <div class="form-row">
+          <label for="pay_mode">{{ t('common.mode') }}</label>
+          <select id="pay_mode" name="pay_mode">
+            {% for m in modes %}<option value="{{ m }}" {{ 'selected' if f.pay_mode == m }}>{{ t('mode.' ~ m) }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="notes">{{ t('common.notes') }}</label>
+          <textarea id="notes" name="notes" rows="2">{{ f.notes }}</textarea>
+        </div>
+      </div>
+    {% endcall %}
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">{{ t('sales.create') }}</button>
+      <a class="btn btn-outline" href="{{ url_for('sales.index') }}">{{ t('common.cancel') }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var ORG = {{ org_state_code|tojson }};
+  var HINT_INTRA = {{ t('sales.intra_hint')|tojson }}, HINT_INTER = {{ t('sales.inter_hint')|tojson }};
+  var STOCK = {{ t('sales.in_stock')|tojson }};
+  var tbody = document.querySelector('#lines tbody');
+  var cust = document.getElementById('customer_id');
+  function fmt(n) { return n.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+  function hint() {
+    var o = cust.options[cust.selectedIndex], h = document.getElementById('tax-hint');
+    if (!o || !o.value) { h.textContent = ''; return; }
+    h.textContent = (o.dataset.state || '') + ' (' + (o.dataset.code || '') + ') - ' +
+      (o.dataset.code === ORG ? HINT_INTRA : HINT_INTER) + ' · ';
+  }
+  function recalc() {
+    var sub = 0, gst = 0;
+    tbody.querySelectorAll('tr.line').forEach(function (tr) {
+      var o = tr.querySelector('.p-sel').selectedOptions[0];
+      var q = parseFloat(tr.querySelector('.q-in').value) || 0;
+      var r = parseFloat(tr.querySelector('.r-in').value) || 0;
+      var g = o && o.value ? parseFloat(o.dataset.gst) || 0 : 0;
+      var a = q * r;
+      sub += a; gst += a * g / 100;
+      tr.querySelector('.line-amt').textContent = fmt(a);
+      var note = tr.querySelector('.stock-note');
+      note.textContent = o && o.value ? STOCK + ': ' + o.dataset.stock + ' ' + o.dataset.unit : '';
+      note.style.color = (o && o.value && q > parseFloat(o.dataset.stock)) ? '#b00020' : '';
+    });
+    document.getElementById('t-sub').textContent = fmt(sub);
+    document.getElementById('t-gst').textContent = fmt(gst);
+    document.getElementById('t-total').textContent = fmt(sub + gst);
+  }
+  function venue() {
+    document.getElementById('venue-row').style.display = document.getElementById('channel').value === 'fair' ? '' : 'none';
+  }
+  tbody.addEventListener('change', function (e) {
+    if (e.target.classList.contains('p-sel')) {
+      var tr = e.target.closest('tr'), o = e.target.selectedOptions[0];
+      if (o && o.value) tr.querySelector('.r-in').value = o.dataset.price;
+    }
+    recalc();
+  });
+  tbody.addEventListener('input', recalc);
+  tbody.addEventListener('click', function (e) {
+    if (!e.target.classList.contains('rm-row')) return;
+    var rows = tbody.querySelectorAll('tr.line');
+    if (rows.length > 1) e.target.closest('tr').remove(); else {
+      rows[0].querySelectorAll('input').forEach(function (i) { i.value = ''; });
+      rows[0].querySelector('select').value = '';
+    }
+    recalc();
+  });
+  document.getElementById('add-row').addEventListener('click', function () {
+    var rows = tbody.querySelectorAll('tr.line'), c = rows[rows.length - 1].cloneNode(true);
+    c.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    c.querySelector('select').value = '';
+    tbody.appendChild(c); recalc();
+  });
+  cust.addEventListener('change', hint);
+  document.getElementById('channel').addEventListener('change', venue);
+  hint(); venue(); recalc();
+})();
+</script>
+{% endblock %}

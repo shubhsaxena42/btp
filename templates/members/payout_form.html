@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('members.new_payout') }}{% endblock %}
+{% block content %}
+<div class="container">
+{{ ui.page_header(t('members.new_payout')) }}
+{% set mode_opts = [] %}{% for x in modes %}{% set _ = mode_opts.append((x, t('mode.' ~ x))) %}{% endfor %}
+{% call ui.card() %}
+<form method="post" class="stack">
+  <div class="form-grid">
+    <div class="form-row">
+      <label for="member_id">{{ t('common.member') }} *</label>
+      <select name="member_id" id="member_id" required>
+        <option value="">{{ t('common.select') }}</option>
+        {% for m in members %}
+        <option value="{{ m.id }}" data-balance="{{ '%.2f'|format(m.balance) }}" {{ 'selected' if m.id == v.member_id }}>{{ m.code }} - {{ L(m, 'name') }}</option>
+        {% endfor %}
+      </select>
+      <small class="muted">{{ t('members.current_balance') }}: <strong id="bal">-</strong></small>
+    </div>
+    {{ ui.field('date', t('common.date'), v.date, type='date', required=True) }}
+    {{ ui.field('amount', t('common.amount'), v.amount, type='number', required=True, step='0.01', min='0.01') }}
+    {{ ui.field('mode', t('common.mode'), v.mode, type='select', required=True, options=mode_opts) }}
+    {{ ui.field('reference', t('common.reference'), v.reference) }}
+  </div>
+  {{ ui.field('notes', t('common.notes'), v.notes, type='textarea') }}
+  <div class="form-actions">
+    <button class="btn btn-success" type="submit">{{ t('common.save') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('members.payouts') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var sel = document.getElementById('member_id'), bal = document.getElementById('bal');
+  var amt = document.querySelector('[name=amount]');
+  function fmt(n) { return '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+  function upd(setAmt) {
+    var o = sel.options[sel.selectedIndex];
+    var b = o && o.dataset.balance;
+    if (!b) { bal.textContent = '-'; return; }
+    bal.textContent = fmt(b);
+    if (setAmt && amt && !amt.value && parseFloat(b) > 0) amt.value = parseFloat(b).toFixed(2);
+  }
+  sel.addEventListener('change', function () { if (amt) amt.value = ''; upd(true); });
+  upd(true);
+})();
+</script>
+{% endblock %}

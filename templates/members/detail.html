@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ L(m, 'name') }}{% endblock %}
+{% block content %}
+{% set initials = (m.name.split()|map('first')|list)[:2]|join|upper %}
+<div class="container">
+{% call ui.page_header(L(m, 'name'), m.code) %}
+  <a class="btn btn-saffron" href="{{ safe_url('work_orders.new', member_id=m.id) }}">{{ t('members.new_wo') }}</a>
+  <a class="btn btn-outline" href="{{ safe_url('purchases.new', member_id=m.id) }}">{{ t('members.record_produce') }}</a>
+  <a class="btn btn-success" href="{{ url_for('members.new_payout', member_id=m.id) }}">{{ t('members.pay') }}</a>
+  <a class="btn btn-primary" href="{{ url_for('members.edit', member_id=m.id) }}">{{ t('common.edit') }}</a>
+{% endcall %}
+
+<div class="grid-2">
+  {% call ui.card(t('common.details')) %}
+  <div style="display:flex;gap:16px;align-items:center;margin-bottom:12px">
+    <div style="width:64px;height:64px;border-radius:50%;background:#003366;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700">{{ initials }}</div>
+    <div>
+      <div style="font-size:18px;font-weight:700">{{ L(m, 'name') }}</div>
+      <div class="muted">{{ L(m, 'skill') or '' }}</div>
+      {% if not m.active %}{{ ui.badge(t('status.inactive'), 'neutral') }}{% else %}{{ ui.badge(t('status.active'), 'success') }}{% endif %}
+    </div>
+  </div>
+  <table class="details-table">
+    <tr><th>{{ t('members.gender') }}</th><td>{{ t('members.gender_' ~ m.gender) if m.gender else '' }}</td></tr>
+    <tr><th>{{ t('common.village') }}</th><td>{{ [m.village, m.block, m.district]|select|join(', ') }}</td></tr>
+    <tr><th>{{ t('members.shg') }}</th><td>{{ m.shg_name or '' }}</td></tr>
+    <tr><th>{{ t('members.joined_on') }}</th><td>{{ m.joined_on|dmy }}</td></tr>
+    {% if m.notes %}<tr><th>{{ t('common.notes') }}</th><td>{{ m.notes }}</td></tr>{% endif %}
+  </table>
+  {% endcall %}
+  {% call ui.card(t('members.contact_bank')) %}
+  <table class="details-table">
+    <tr><th>{{ t('common.phone') }}</th><td>{{ m.phone or '' }}</td></tr>
+    <tr><th>{{ t('members.upi') }}</th><td>{{ m.upi_id or '' }}</td></tr>
+    <tr><th>{{ t('members.bank_account') }}</th><td>{{ m.bank_account or '' }}</td></tr>
+    <tr><th>{{ t('members.ifsc') }}</th><td>{{ m.ifsc or '' }}</td></tr>
+  </table>
+  {% endcall %}
+</div>
+
+<div class="kpi-grid">
+  {{ ui.kpi(t('members.earned'), bal.earned|inr, tone='primary') }}
+  {{ ui.kpi(t('members.paid'), bal.paid|inr, tone='success') }}
+  {{ ui.kpi(t('members.balance'), bal.balance|inr, tone='warning' if bal.balance > 0.005 else 'primary') }}
+</div>
+
+{% call ui.card(t('members.gi_auth')) %}
+{% if gi_rows %}
+<table class="data-table">
+  <thead><tr><th>{{ t('common.gi') }}</th><th>{{ t('members.au_number') }}</th><th>{{ t('members.au_registered') }}</th><th>{{ t('members.au_valid') }}</th></tr></thead>
+  <tbody>
+  {% for g in gi_rows %}
+  <tr>
+    <td>{{ L(g, 'name') }}</td><td>{{ g.au_number or '' }}</td><td>{{ g.au_registered_on|dmy }}</td>
+    <td>{{ g.au_valid_upto|dmy }}
+      {% if g.state == 'expired' %}{{ ui.badge(t('members.expired'), 'danger') }}
+      {% elif g.state == 'expiring' %}{{ ui.badge(t('members.expiring'), 'warning') }}{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% if avail_gis %}
+<form method="post" action="{{ url_for('members.add_gi', member_id=m.id) }}" class="toolbar" style="margin-top:12px">
+  <select name="gi_id" required>
+    <option value="">{{ t('common.gi') }}</option>
+    {% for g in avail_gis %}<option value="{{ g.id }}">{{ L(g, 'name') }}</option>{% endfor %}
+  </select>
+  <input type="text" name="au_number" placeholder="{{ t('members.au_number') }}">
+  <label class="muted">{{ t('members.au_registered') }} <input type="date" name="au_registered_on"></label>
+  <label class="muted">{{ t('members.au_valid') }} <input type="date" name="au_valid_upto"></label>
+  <button class="btn btn-primary btn-sm" type="submit">{{ t('members.add_gi') }}</button>
+</form>
+{% else %}<p class="muted">{{ t('members.no_gi_left') }}</p>{% endif %}
+{% endcall %}
+
+{% call ui.card(t('members.work_orders')) %}
+{% if wos %}
+<div style="overflow-x:auto"><table class="data-table">
+  <thead><tr><th>{{ t('members.wo_no') }}</th><th>{{ t('common.product') }}</th><th class="num">{{ t('members.ordered') }}</th><th class="num">{{ t('members.received') }}</th><th>{{ t('members.issued_on') }}</th><th>{{ t('members.due_on') }}</th><th>{{ t('common.status') }}</th><th class="num">{{ t('members.wage') }}</th></tr></thead>
+  <tbody>
+  {% for w in wos %}
+  <tr>
+    <td><a href="{{ safe_url('work_orders.detail', wo_id=w.id) }}">{{ w.wo_no }}</a></td>
+    <td>{{ L({'name': w.pname, 'name_hi': w.pname_hi}, 'name') }}</td>
+    <td class="num">{{ w.qty_ordered|num }}</td>
+    <td class="num">{{ (w.qty_received|num) if w.qty_received is not none else '' }}</td>
+    <td>{{ w.issued_on|dmy }}</td><td>{{ w.due_on|dmy }}</td>
+    <td>{{ ui.status_badge(w.status) }}</td>
+    <td class="num">{{ w.wage_amount|inr if w.status == 'completed' else '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% endcall %}
+
+{% call ui.card(t('members.produce')) %}
+{% if purchases %}
+<div style="overflow-x:auto"><table class="data-table">
+  <thead><tr><th>{{ t('members.purchase_no') }}</th><th>{{ t('common.date') }}</th><th>{{ t('common.raw_material') }}</th><th class="num">{{ t('common.qty') }}</th><th class="num">{{ t('common.rate') }}</th><th class="num">{{ t('common.amount') }}</th></tr></thead>
+  <tbody>
+  {% for p in purchases %}
+  <tr>
+    <td>{{ p.purchase_no }}</td><td>{{ p.date|dmy }}</td>
+    <td>{{ L({'name': p.rname, 'name_hi': p.rname_hi}, 'name') }}</td>
+    <td class="num">{{ p.qty|num }} {{ t('unit.' ~ p.runit) }}</td>
+    <td class="num">{{ p.rate|inr }}</td><td class="num">{{ p.amount|inr }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% endcall %}
+
+{% call ui.card(t('members.ledger')) %}
+{% if ledger %}
+<div style="overflow-x:auto"><table class="data-table">
+  <thead><tr><th>{{ t('common.date') }}</th><th>{{ t('members.kind') }}</th><th>{{ t('common.reference') }}</th><th class="num">{{ t('members.credit') }}</th><th class="num">{{ t('members.debit') }}</th><th class="num">{{ t('members.running') }}</th></tr></thead>
+  <tbody>
+  {% for l in ledger %}
+  <tr>
+    <td>{{ l.date|dmy }}</td>
+    <td>{{ t('members.kind_' ~ l.kind) }}</td>
+    <td>{% if l.kind == 'wage' %}<a href="{{ safe_url('work_orders.detail', wo_id=l.ref_id) }}">{{ l.ref }}</a>{% else %}{{ l.ref }}{% endif %}</td>
+    <td class="num">{{ l.credit|inr if l.credit else '' }}</td>
+    <td class="num">{{ l.debit|inr if l.debit else '' }}</td>
+    <td class="num">{{ l.running|inr }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% endcall %}
+</div>
+{% endblock %}

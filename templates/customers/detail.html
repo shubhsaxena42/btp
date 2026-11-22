@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ c.name }}{% endblock %}
+{% block content %}
+{% call ui.page_header(c.name, c.code ~ ' · ' ~ t('ctype.' ~ c.type)) %}
+  <a class="btn btn-primary" href="{{ safe_url('sales.new', customer_id=c.id) }}">{{ t('customers.new_invoice') }}</a>
+  {% if c.type == 'outlet' %}<a class="btn btn-saffron" href="{{ safe_url('consignments.new', customer_id=c.id) }}">{{ t('customers.new_consignment') }}</a>{% endif %}
+  <a class="btn btn-outline" href="{{ url_for('customers.edit', customer_id=c.id) }}">{{ t('common.edit') }}</a>
+{% endcall %}
+<div class="kpi-grid">
+  {{ ui.kpi(t('customers.invoiced'), bal.invoiced|inr) }}
+  {{ ui.kpi(t('customers.received'), bal.received|inr, tone='success') }}
+  {{ ui.kpi(t('customers.balance'), bal.balance|inr, tone='danger' if bal.balance > 0 else 'success') }}
+</div>
+{% call ui.card(t('customers.info')) %}
+<table class="details-table">
+  <tr><th>{{ t('common.code') }}</th><td>{{ c.code }}</td><th>{{ t('customers.type') }}</th><td>{{ t('ctype.' ~ c.type) }}</td></tr>
+  <tr><th>{{ t('customers.contact_person') }}</th><td>{{ c.contact_person or '' }}</td><th>{{ t('common.phone') }}</th><td>{{ c.phone or '' }}</td></tr>
+  <tr><th>{{ t('customers.email') }}</th><td>{{ c.email or '' }}</td><th>{{ t('customers.gstin') }}</th><td>{{ c.gstin or '' }}</td></tr>
+  <tr><th>{{ t('common.address') }}</th><td>{{ c.address or '' }}</td><th>{{ t('customers.city') }}</th><td>{{ c.city or '' }}</td></tr>
+  <tr><th>{{ t('customers.state') }}</th><td>{{ c.state }} ({{ c.state_code }})</td><th>{{ t('common.notes') }}</th><td>{{ c.notes or '' }}</td></tr>
+</table>
+{% endcall %}
+
+{% call ui.card(t('customers.invoices')) %}
+{% if invoices %}
+<table class="data-table">
+  <thead><tr><th>{{ t('customers.invoice_no') }}</th><th>{{ t('common.date') }}</th><th>{{ t('customers.channel') }}</th>
+    <th class="num">{{ t('common.total') }}</th><th class="num">{{ t('common.paid') }}</th><th class="num">{{ t('common.due') }}</th><th>{{ t('common.status') }}</th></tr></thead>
+  <tbody>
+  {% for s in invoices %}
+  <tr>
+    <td><a href="{{ safe_url('sales.detail', sale_id=s.id) }}">{{ s.invoice_no }}</a></td>
+    <td>{{ s.date|dmy }}</td><td>{{ t('channel.' ~ s.channel) }}</td>
+    <td class="num">{{ s.total|inr }}</td><td class="num">{{ s.paid|inr }}</td><td class="num">{{ s.due|inr }}</td>
+    <td>{{ ui.status_badge(s.pay_status) }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% endcall %}
+
+{% call ui.card(t('customers.payments')) %}
+{% if payments %}
+<table class="data-table">
+  <thead><tr><th>{{ t('common.date') }}</th><th>{{ t('customers.invoice_no') }}</th><th class="num">{{ t('common.amount') }}</th>
+    <th>{{ t('common.mode') }}</th><th>{{ t('common.reference') }}</th></tr></thead>
+  <tbody>
+  {% for p in payments %}
+  <tr><td>{{ p.date|dmy }}</td>
+    <td><a href="{{ safe_url('sales.detail', sale_id=p.sale_id) }}">{{ p.invoice_no }}</a></td>
+    <td class="num">{{ p.amount|inr }}</td><td>{{ t('mode.' ~ p.mode) }}</td><td>{{ p.reference or '' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% endcall %}
+
+{% if consignments %}
+{% call ui.card(t('customers.consignments')) %}
+<table class="data-table">
+  <thead><tr><th>{{ t('customers.cn_no') }}</th><th>{{ t('customers.sent_on') }}</th><th>{{ t('common.status') }}</th></tr></thead>
+  <tbody>
+  {% for n in consignments %}
+  <tr><td><a href="{{ safe_url('consignments.detail', cn_id=n.id) }}">{{ n.cn_no }}</a></td>
+    <td>{{ n.sent_on|dmy }}</td><td>{{ ui.status_badge(n.status) }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endcall %}
+{% endif %}
+
+{% call ui.card(t('customers.statement')) %}
+{% if statement %}
+<table class="data-table">
+  <thead><tr><th>{{ t('common.date') }}</th><th>{{ t('customers.particulars') }}</th>
+    <th class="num">{{ t('customers.debit') }}</th><th class="num">{{ t('customers.credit') }}</th><th class="num">{{ t('customers.balance') }}</th></tr></thead>
+  <tbody>
+  {% for e in statement %}
+  <tr><td>{{ e.date|dmy }}</td>
+    <td>{{ t('customers.stmt_invoice' if e.kind == 'invoice' else 'customers.stmt_payment', ref=e.ref) }}</td>
+    <td class="num">{{ e.debit|inr if e.debit else '' }}</td><td class="num">{{ e.credit|inr if e.credit else '' }}</td>
+    <td class="num">{{ e.balance|inr }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% endcall %}
+{% endblock %}

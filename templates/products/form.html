@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% set editing = p.id is defined and p.id %}
+{% block title %}{{ t('products.edit_title') if editing else t('products.new_title') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('products.edit_title') if editing else t('products.new_title')) %}
+  <a class="btn btn-outline" href="{{ url_for('products.detail', product_id=p.id) if editing else url_for('products.index') }}">{{ t('common.back') }}</a>
+{% endcall %}
+
+{% if errors %}
+<div class="alert alert-danger">
+  {% for k, m in errors.items() %}<div>{{ m }}{% if k != 'bom' %} ({{ k }}){% endif %}</div>{% endfor %}
+</div>
+{% endif %}
+
+<form method="post" class="stack">
+  {% call ui.card(t('products.info')) %}
+  <div class="form-grid">
+    {{ ui.field('sku', t('products.sku'), p.sku, required=True, attrs='style="text-transform:uppercase"') }}
+    {{ ui.field('gi_id', t('common.gi'), p.gi_id, type='select', required=True,
+        options=gi_opts) }}
+    {{ ui.field('name', t('products.name_en'), p.name, required=True) }}
+    {{ ui.field('name_hi', t('products.name_hi'), p.name_hi or '') }}
+    {{ ui.field('unit', t('common.unit'), p.unit, type='select', required=True,
+        options=unit_opts) }}
+    {{ ui.field('hsn', t('common.hsn'), p.hsn or '') }}
+    {{ ui.field('gst_rate', t('products.gst_pct'), p.gst_rate|int, type='select', required=True,
+        options=gst_opts) }}
+    {{ ui.field('price', t('products.price_excl'), p.price, type='number', step='0.01', min='0', required=True) }}
+    {{ ui.field('piece_rate', t('products.piece_rate'), p.piece_rate, type='number', step='0.01', min='0') }}
+    {{ ui.field('shelf_life_days', t('products.shelf_life'), p.shelf_life_days if p.shelf_life_days is not none else '', type='number', step='1', min='1', help=t('products.shelf_life_help')) }}
+    {{ ui.field('description', t('products.desc_en'), p.description or '', type='textarea') }}
+    {{ ui.field('description_hi', t('products.desc_hi'), p.description_hi or '', type='textarea') }}
+  </div>
+  <label class="mt-0"><input type="checkbox" name="active" value="1" {{ 'checked' if p.active }}> {{ t('products.active') }}</label>
+  {% endcall %}
+
+  {% call ui.card(t('products.bom')) %}
+  <p class="muted">{{ t('products.bom_help') }}</p>
+  <table class="lines-table" id="bom-table">
+    <thead><tr><th>{{ t('common.raw_material') }}</th><th>{{ t('products.qty_per_unit') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for r in (bom_rows or [{'raw_material_id': '', 'qty_per_unit': ''}]) %}
+      <tr>
+        <td><select name="raw_material_id[]">
+          <option value="">{{ t('common.select') }}</option>
+          {% for m in materials %}<option value="{{ m.id }}" {{ 'selected' if r.raw_material_id == m.id }}>{{ L(m, 'name') }} ({{ t('unit.' ~ m.unit) }})</option>{% endfor %}
+        </select></td>
+        <td><input type="number" name="qty_per_unit[]" step="any" min="0" value="{{ r.qty_per_unit }}"></td>
+        <td><button type="button" class="btn btn-sm btn-outline" data-remove>{{ t('products.remove') }}</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p><button type="button" class="btn btn-sm btn-outline" id="bom-add">{{ t('products.add_row') }}</button></p>
+  {% endcall %}
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ t('common.save') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('products.detail', product_id=p.id) if editing else url_for('products.index') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var tbody = document.querySelector('#bom-table tbody');
+  function bind(row) {
+    row.querySelector('[data-remove]').addEventListener('click', function () {
+      if (tbody.rows.length > 1) { row.remove(); }
+      else { row.querySelector('select').value = ''; row.querySelector('input').value = ''; }
+    });
+  }
+  Array.prototype.forEach.call(tbody.rows, bind);
+  document.getElementById('bom-add').addEventListener('click', function () {
+    var c = tbody.rows[tbody.rows.length - 1].cloneNode(true);
+    c.querySelector('select').value = ''; c.querySelector('input').value = '';
+    tbody.appendChild(c); bind(c);
+  });
+})();
+</script>
+{% endblock %}

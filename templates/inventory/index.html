@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('inventory.title') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('inventory.title'), t('inventory.subtitle')) %}
+  <a class="btn btn-outline" href="{{ url_for('inventory.movements') }}">{{ t('inventory.movements') }}</a>
+  <a class="btn btn-outline" href="{{ url_for('inventory.materials') }}">{{ t('inventory.materials') }}</a>
+  <a class="btn btn-saffron" href="{{ url_for('inventory.adjust') }}">{{ t('inventory.adjust_stock') }}</a>
+{% endcall %}
+
+<div class="kpi-grid">
+  {{ ui.kpi(t('inventory.kpi_finished'), finished_value|inr, tone='success') }}
+  {{ ui.kpi(t('inventory.kpi_raw'), raw_value|inr, tone='primary') }}
+  {{ ui.kpi(t('inventory.kpi_low'), low_count, tone='danger' if low_count else 'success') }}
+  {{ ui.kpi(t('inventory.kpi_expiring'), expiring, tone='warning' if expiring else 'success') }}
+</div>
+
+<div class="tabs">
+  <a class="tab {{ 'active' if tab == 'finished' }}" href="{{ url_for('inventory.index', tab='finished') }}">{{ t('inventory.tab_finished') }}</a>
+  <a class="tab {{ 'active' if tab == 'raw' }}" href="{{ url_for('inventory.index', tab='raw') }}">{{ t('inventory.tab_raw') }}</a>
+</div>
+
+{% if tab == 'finished' %}
+{% call ui.card() %}
+{% if products %}
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('common.product') }}</th><th>{{ t('common.gi') }}</th><th>{{ t('common.unit') }}</th>
+    <th class="num">{{ t('inventory.sellable') }}</th><th class="num">{{ t('inventory.pending_check') }}</th>
+    <th class="num">{{ t('inventory.at_outlets') }}</th><th class="num">{{ t('inventory.value') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for p in products %}
+    <tr>
+      <td><a href="{{ safe_url('products.detail', product_id=p.id) }}"><strong>{{ L(p, 'name') }}</strong></a>
+        <div class="muted">{{ p.sku }}</div></td>
+      <td>{{ p.gi_name_hi if lang == 'hi' and p.gi_name_hi else p.gi_name }}</td>
+      <td>{{ t('unit.' ~ p.unit) }}</td>
+      <td class="num">{{ p.qty_sellable|num }}</td>
+      <td class="num">{{ p.qty_pending|num }}</td>
+      <td class="num">{{ p.qty_at_outlets|num }}</td>
+      <td class="num">{{ ((p.qty_sellable + p.qty_pending) * p.price)|inr }}</td>
+    </tr>
+    {% set bl = batches_by_product.get(p.id, []) %}
+    <tr><td colspan="7" style="padding-top:0">
+      <details>
+        <summary class="muted">{{ t('common.batches') }} ({{ bl|length }})</summary>
+        {% if bl %}
+        <table class="data-table">
+          <thead><tr>
+            <th>{{ t('inventory.batch_no') }}</th><th>{{ t('common.status') }}</th>
+            <th>{{ t('inventory.mfg_date') }}</th><th>{{ t('inventory.expiry') }}</th>
+            <th class="num">{{ t('inventory.on_hand') }}</th>
+          </tr></thead>
+          <tbody>
+          {% for b in bl %}
+            <tr>
+              <td><a href="{{ safe_url('batches.detail', batch_id=b.id) }}">{{ b.batch_no }}</a></td>
+              <td>{{ ui.status_badge(b.status) }}</td>
+              <td>{{ b.mfg_date|dmy }}</td>
+              <td>{{ b.expiry_date|dmy }}
+                {% if b.expiry_date %}
+                  {% if b.expiry_date < today %} {{ ui.badge(t('inventory.expired'), 'danger') }}
+                  {% elif b.expiry_date <= soon %} {{ ui.badge(t('inventory.expiring_soon'), 'warning') }}{% endif %}
+                {% endif %}</td>
+              <td class="num">{{ b.qty_on_hand|num }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}<p class="muted">{{ t('inventory.no_batches') }}</p>{% endif %}
+      </details>
+    </td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+{% else %}
+{% call ui.card() %}
+{% if raws %}
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('common.code') }}</th><th>{{ t('common.raw_material') }}</th><th>{{ t('common.unit') }}</th>
+    <th class="num">{{ t('inventory.on_hand') }}</th><th class="num">{{ t('inventory.reorder_level') }}</th>
+    <th class="num">{{ t('inventory.value') }}</th><th>{{ t('common.status') }}</th><th class="no-print">{{ t('common.actions') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for r in raws %}
+    <tr>
+      <td>{{ r.code }}</td>
+      <td>{{ L(r, 'name') }}</td>
+      <td>{{ t('unit.' ~ r.unit) }}</td>
+      <td class="num">{{ r.qty_on_hand|num }}</td>
+      <td class="num">{{ r.reorder_level|num }}</td>
+      <td class="num">{{ (r.qty_on_hand * r.cost_per_unit)|inr }}</td>
+      <td>{% if r.qty_on_hand < r.reorder_level %}{{ ui.badge(t('inventory.low_stock'), 'danger') }}{% else %}{{ ui.badge(t('inventory.stock_ok'), 'success') }}{% endif %}</td>
+      <td class="nowrap no-print">
+        <a class="btn btn-sm btn-outline" href="{{ safe_url('purchases.new', raw_material_id=r.id) }}">{{ t('inventory.purchase') }}</a>
+        <a class="btn btn-sm btn-outline" href="{{ url_for('inventory.adjust', raw_material_id=r.id) }}">{{ t('inventory.adjust') }}</a>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+{% endif %}
+{% endblock %}

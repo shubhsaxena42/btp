@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('customers.new_title') if is_new else t('customers.edit_title') }}{% endblock %}
+{% block content %}
+{% set type_options = [] %}{% for x in types %}{% set _ = type_options.append((x, t('ctype.' ~ x))) %}{% endfor %}
+{% set state_options = [] %}{% for code, name in states %}{% set _ = state_options.append((code, code ~ ' - ' ~ name)) %}{% endfor %}
+{{ ui.page_header(t('customers.new_title') if is_new else t('customers.edit_title')) }}
+{% call ui.card() %}
+<form method="post" class="stack">
+  <div class="form-grid">
+    <div class="form-row">
+      <label>{{ t('common.code') }}</label>
+      <input type="text" value="{{ c.code if c else t('customers.code_auto') }}" readonly disabled>
+    </div>
+    {{ ui.field('name', t('common.name'), v.get('name',''), required=True) }}
+    {{ ui.field('type', t('customers.type'), v.get('type',''), type='select', required=True,
+         options=type_options) }}
+    {{ ui.field('contact_person', t('customers.contact_person'), v.get('contact_person','')) }}
+    {{ ui.field('phone', t('common.phone'), v.get('phone',''), type='tel', help=t('customers.phone_help'), attrs='maxlength=10 pattern=[0-9]{10}') }}
+    {{ ui.field('email', t('customers.email'), v.get('email',''), type='email') }}
+    {{ ui.field('gstin', t('customers.gstin'), v.get('gstin',''), help=t('customers.gstin_help'), attrs='maxlength=15 style=text-transform:uppercase') }}
+    {{ ui.field('city', t('customers.city'), v.get('city','')) }}
+    {{ ui.field('state_code', t('customers.state'), v.get('state_code',''), type='select', required=True, options=state_options) }}
+  </div>
+  {{ ui.field('address', t('common.address'), v.get('address',''), type='textarea') }}
+  {{ ui.field('notes', t('common.notes'), v.get('notes',''), type='textarea') }}
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ t('common.save') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('customers.detail', customer_id=c.id) if c else url_for('customers.index') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}
+{% endblock %}

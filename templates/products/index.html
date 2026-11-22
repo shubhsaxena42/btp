@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('products.title') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('products.title'), t('products.subtitle')) %}
+  <a class="btn btn-primary" href="{{ url_for('products.new') }}">{{ t('products.add') }}</a>
+{% endcall %}
+
+<form method="get" class="toolbar">
+  <select name="gi_id" onchange="this.form.submit()">
+    <option value="">{{ t('common.gi') }}: {{ t('common.all') }}</option>
+    {% for g in gis %}<option value="{{ g.id }}" {{ 'selected' if gi_id == g.id }}>{{ L(g, 'name') }}</option>{% endfor %}
+  </select>
+  <input type="text" name="q" value="{{ q }}" placeholder="{{ t('products.search_ph') }}">
+  <button class="btn btn-outline" type="submit">{{ t('common.search') }}</button>
+</form>
+
+{% call ui.card() %}
+{% if products %}
+<table class="data-table">
+  <thead><tr>
+    <th>{{ t('products.sku') }}</th><th>{{ t('common.name') }}</th><th>{{ t('common.gi') }}</th>
+    <th>{{ t('common.unit') }}</th><th class="num">{{ t('products.price_excl') }}</th>
+    <th class="num">{{ t('products.gst_pct') }}</th>
+    <th class="num">{{ t('products.sellable') }}</th><th class="num">{{ t('products.pending') }}</th>
+    <th class="num">{{ t('products.at_outlets') }}</th><th class="num">{{ t('products.stock_value') }}</th>
+    <th></th>
+  </tr></thead>
+  <tbody>
+  {% for p in products %}
+    <tr>
+      <td class="nowrap">{{ p.sku }}</td>
+      <td><a href="{{ url_for('products.detail', product_id=p.id) }}">{{ L(p, 'name') }}</a>
+        {% if not p.active %} {{ ui.badge(t('status.inactive'), 'neutral') }}{% endif %}</td>
+      <td>{{ p.gi_name_hi if lang == 'hi' and p.gi_name_hi else p.gi_name }}</td>
+      <td>{{ t('unit.' ~ p.unit) }}</td>
+      <td class="num">{{ p.price|inr }}</td>
+      <td class="num">{{ p.gst_rate|num }}%</td>
+      <td class="num">{{ p.qty_sellable|num }}</td>
+      <td class="num">{{ p.qty_pending|num }}</td>
+      <td class="num">{{ p.qty_at_outlets|num }}</td>
+      <td class="num">{{ (p.qty_sellable * p.price)|inr }}</td>
+      <td class="text-right"><a class="btn btn-sm btn-outline" href="{{ url_for('products.detail', product_id=p.id) }}">{{ t('common.view') }}</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% endcall %}
+{% endblock %}

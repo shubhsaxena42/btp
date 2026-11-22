@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ L(g, 'name') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(L(g, 'name'), (g.name if lang == 'hi' and g.name_hi else g.application_number)) %}
+  <a class="btn btn-outline" href="{{ url_for('gi.index') }}">{{ t('common.back') }}</a>
+  <a class="btn btn-primary" href="{{ url_for('gi.edit', gi_id=g.id) }}">{{ t('common.edit') }}</a>
+{% endcall %}
+<div class="grid-2">
+  {% call ui.card(t('gi.registry_details')) %}
+  <div style="text-align:center;margin-bottom:12px"><img src="{{ url_for('static', filename='img/gi_image.jpeg') }}" alt="{{ L(g, 'name') }}" style="max-width:100%;max-height:160px"></div>
+  <table class="details-table">
+    {% macro row(label, val) %}<tr><th>{{ label }}</th><td>{{ val if val else '—' }}</td></tr>{% endmacro %}
+    {{ row(t('gi.application_number'), g.application_number) }}
+    {{ row(t('gi.applicant_name'), g.applicant_name) }}
+    {{ row(t('gi.applicant_address'), g.applicant_address) }}
+    {{ row(t('gi.date_of_filing'), g.date_of_filing|dmy) }}
+    {{ row(t('gi.class'), g['class']) }}
+    {{ row(t('gi.goods'), g.goods) }}
+    {{ row(t('gi.geographical_area'), g.geographical_area) }}
+    {{ row(t('gi.priority_country'), g.priority_country) }}
+    {{ row(t('gi.journal_number'), g.journal_number) }}
+    {{ row(t('gi.availability_date'), g.availability_date|dmy) }}
+    {{ row(t('gi.certificate_number'), g.certificate_number) }}
+    {{ row(t('gi.certificate_date'), g.certificate_date|dmy) }}
+    <tr><th>{{ t('gi.valid_upto') }}</th><td>{% if g.valid_upto %}{{ g.valid_upto|dmy }}
+      {% if tone == 'danger' %}{{ ui.badge(t('gi.expired'), 'danger') }}{% elif tone == 'warning' %}{{ ui.badge(t('gi.kpi_expiring'), 'warning') }}{% elif tone %}{{ ui.badge(t('status.active'), 'success') }}{% endif %}{% else %}—{% endif %}</td></tr>
+    {{ row(t('common.status'), g.status) }}
+  </table>
+  {% endcall %}
+  <div class="stack">
+    {% call ui.card(t('gi.description')) %}
+      {% set d = L(g, 'description') %}
+      <p>{{ d if d else '—' }}</p>
+    {% endcall %}
+    {% call ui.card(t('gi.checklist')) %}
+      {% if checklist %}
+      <ol>{% for c in checklist %}<li>{{ (c.hi if lang == 'hi' and c.hi else c.en) }}</li>{% endfor %}</ol>
+      {% else %}<p class="muted">{{ t('gi.checklist_empty') }}</p>{% endif %}
+    {% endcall %}
+    {% if sources %}
+    {% call ui.card(t('gi.sources')) %}
+      <ul>{% for u in sources %}
+        {% set host = u.split('//')[-1].split('/')[0] %}
+        <li><a href="{{ u }}" target="_blank" rel="noopener">{% if 'ipindia' in host %}{{ t('gi.source_ipindia') }}{% else %}{{ t('gi.source_other', host=host) }}{% endif %}</a></li>
+      {% endfor %}</ul>
+    {% endcall %}
+    {% endif %}
+  </div>
+</div>
+
+{% call ui.card(t('gi.authorised_users')) %}
+{% if members %}
+<div style="overflow-x:auto"><table class="data-table">
+  <thead><tr><th>{{ t('common.code') }}</th><th>{{ t('common.member') }}</th><th>{{ t('common.village') }}</th><th>{{ t('gi.au_number') }}</th><th>{{ t('gi.au_valid_upto') }}</th></tr></thead>
+  <tbody>{% for m in members %}
+  <tr><td>{{ m.code }}</td>
+    <td>{% set u = safe_url('members.detail', member_id=m.id) %}{% if u %}<a href="{{ u }}">{{ L(m, 'name') }}</a>{% else %}{{ L(m, 'name') }}{% endif %}</td>
+    <td>{{ m.village or '—' }}</td><td>{{ m.au_number or '—' }}</td>
+    <td class="nowrap">{% if m.au_valid_upto %}{{ m.au_valid_upto|dmy }}
+      {% if m.tone == 'danger' %}{{ ui.badge(t('gi.expired'), 'danger') }}{% elif m.tone == 'warning' %}{{ ui.badge(t('gi.kpi_expiring'), 'warning') }}{% elif m.tone %}{{ ui.badge(t('status.active'), 'success') }}{% endif %}
+      {% else %}—{% endif %}</td></tr>
+  {% endfor %}</tbody></table></div>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+
+{% call ui.card(t('gi.products')) %}
+{% if products %}
+<div style="overflow-x:auto"><table class="data-table">
+  <thead><tr><th>{{ t('common.code') }}</th><th>{{ t('common.product') }}</th><th class="num">{{ t('gi.stock_sellable') }}</th></tr></thead>
+  <tbody>{% for p in products %}
+  <tr><td>{{ p.sku }}</td>
+    <td>{% set u = safe_url('products.detail', product_id=p.id) %}{% if u %}<a href="{{ u }}">{{ L(p, 'name') }}</a>{% else %}{{ L(p, 'name') }}{% endif %}</td>
+    <td class="num">{{ p.qty_sellable|num }} {{ t('unit.' ~ p.unit) }}</td></tr>
+  {% endfor %}</tbody></table></div>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+
+{% call ui.card(t('gi.latest_batches')) %}
+{% if batches %}
+<div style="overflow-x:auto"><table class="data-table">
+  <thead><tr><th>{{ t('common.batch') }}</th><th>{{ t('common.product') }}</th><th class="num">{{ t('common.qty') }}</th><th>{{ t('common.date') }}</th><th>{{ t('common.status') }}</th></tr></thead>
+  <tbody>{% for b in batches %}
+  <tr><td>{% set u = safe_url('batches.detail', batch_id=b.id) %}{% if u %}<a href="{{ u }}">{{ b.batch_no }}</a>{% else %}{{ b.batch_no }}{% endif %}</td>
+    <td>{{ L(b, 'name') }}</td><td class="num">{{ b.qty|num }}</td><td>{{ b.mfg_date|dmy }}</td>
+    <td>{{ ui.status_badge(b.status) }}</td></tr>
+  {% endfor %}</tbody></table></div>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+{% endblock %}

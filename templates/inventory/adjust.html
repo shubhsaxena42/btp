@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('inventory.adjust_stock') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('inventory.adjust_stock')) %}
+  <a class="btn btn-outline" href="{{ url_for('inventory.index') }}">{{ t('common.back') }}</a>
+{% endcall %}
+{% call ui.card() %}
+<form method="post" class="stack">
+  <div class="form-grid">
+    <div class="form-row">
+      <label>{{ t('inventory.item_type') }}</label>
+      <div>
+        <label><input type="radio" name="item_type" value="raw" {{ 'checked' if form.item_type != 'batch' }}> {{ t('inventory.type_raw') }}</label>
+        &nbsp;
+        <label><input type="radio" name="item_type" value="batch" {{ 'checked' if form.item_type == 'batch' }}> {{ t('inventory.type_product') }}</label>
+      </div>
+    </div>
+    <div class="form-row" id="row-raw">
+      <label>{{ t('common.raw_material') }}</label>
+      <select name="raw_material_id">
+        <option value="">{{ t('inventory.choose_material') }}</option>
+        {% for m in materials %}<option value="{{ m.id }}" {{ 'selected' if form.raw_material_id|string == m.id|string }}>{{ m.code }} · {{ L(m, 'name') }} ({{ t('inventory.current') }}: {{ m.qty_on_hand|num }} {{ t('unit.' ~ m.unit) }})</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-row" id="row-batch">
+      <label>{{ t('common.batch') }}</label>
+      <select name="batch_id">
+        <option value="">{{ t('inventory.choose_batch') }}</option>
+        {% for b in batches %}<option value="{{ b.id }}" {{ 'selected' if form.batch_id|string == b.id|string }}>{{ b.batch_no }} · {{ L({'name': b.p_name, 'name_hi': b.p_name_hi}, 'name') }} ({{ t('inventory.current') }}: {{ b.qty_on_hand|num }})</option>{% endfor %}
+      </select>
+    </div>
+    {{ ui.field('qty', t('inventory.signed_qty'), form.qty, type='number', required=True, step='0.01', help=t('inventory.qty_help')) }}
+    {{ ui.field('date', t('common.date'), form.date, type='date', required=True) }}
+  </div>
+  {{ ui.field('reason', t('inventory.reason'), form.reason, type='textarea', required=True) }}
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ t('common.save') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('inventory.index') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  function sync() {
+    var raw = document.querySelector('input[name=item_type]:checked').value === 'raw';
+    document.getElementById('row-raw').style.display = raw ? '' : 'none';
+    document.getElementById('row-batch').style.display = raw ? 'none' : '';
+  }
+  document.querySelectorAll('input[name=item_type]').forEach(function (r) { r.addEventListener('change', sync); });
+  sync();
+})();
+</script>
+{% endblock %}

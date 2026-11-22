@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ wo.wo_no }}{% endblock %}
+{% block content %}
+{% call ui.page_header(wo.wo_no, t('work_orders.job_card')) %}
+  <a class="btn btn-outline no-print" href="{{ url_for('work_orders.index') }}">{{ t('common.back') }}</a>
+  <button class="btn btn-outline no-print" type="button" onclick="window.print()">{{ t('work_orders.job_card') }} - {{ t('common.print') }}</button>
+  {% if wo.status == 'issued' %}
+  <a class="btn btn-success no-print" href="{{ url_for('work_orders.receive', wo_id=wo.id) }}">{{ t('work_orders.receive_goods') }}</a>
+  <form method="post" action="{{ url_for('work_orders.cancel', wo_id=wo.id) }}" style="display:inline" class="no-print"
+        onsubmit="return confirm({{ t('work_orders.confirm_cancel')|tojson|forceescape }})">
+    <button class="btn btn-danger" type="submit">{{ t('work_orders.cancel_wo') }}</button>
+  </form>
+  {% endif %}
+{% endcall %}
+
+<div class="card"><div class="card-body">
+<table class="details-table">
+  <tr><th>{{ t('common.status') }}</th><td>{{ ui.status_badge(wo.status) }}
+    {% if wo.status == 'issued' and wo.due_on and wo.due_on < today %}{{ ui.badge(t('status.overdue'), 'danger') }}{% endif %}</td></tr>
+  <tr><th>{{ t('common.member') }}</th><td><a href="{{ safe_url('members.detail', member_id=wo.member_id) }}">{{ wo.member_code }} - {{ L({'name': wo.member_name, 'name_hi': wo.member_name_hi}, 'name') }}</a></td></tr>
+  <tr><th>{{ t('common.product') }}</th><td><a href="{{ safe_url('products.detail', product_id=wo.product_id) }}">{{ L({'name': wo.product_name, 'name_hi': wo.product_name_hi}, 'name') }}</a> ({{ wo.sku }})</td></tr>
+  <tr><th>{{ t('common.gi') }}</th><td><a href="{{ safe_url('gi.detail', gi_id=wo.gi_id) }}">{{ L({'name': wo.gi_name, 'name_hi': wo.gi_name_hi}, 'name') }}</a></td></tr>
+  <tr><th>{{ t('work_orders.ordered') }}</th><td>{{ wo.qty_ordered|num }} {{ t('unit.' ~ wo.unit) }}</td></tr>
+  <tr><th>{{ t('work_orders.issued_on') }}</th><td>{{ wo.issued_on|dmy }}</td></tr>
+  <tr><th>{{ t('work_orders.due_on') }}</th><td>{{ wo.due_on|dmy }}</td></tr>
+  {% if wo.status == 'completed' %}
+  <tr><th>{{ t('work_orders.received_on') }}</th><td>{{ wo.received_on|dmy }}</td></tr>
+  <tr><th>{{ t('work_orders.received') }}</th><td>{{ wo.qty_received|num }} {{ t('unit.' ~ wo.unit) }}</td></tr>
+  {% endif %}
+  <tr><th>{{ t('work_orders.wage_rate') }}</th><td>{{ wo.wage_rate|inr }}</td></tr>
+  <tr><th>{{ t('work_orders.wage_amount') }}</th><td>{{ wo.wage_amount|inr if wo.status == 'completed' else '-' }}</td></tr>
+  <tr><th>{{ t('common.batch') }}</th><td>{% if wo.batch_id %}<a href="{{ safe_url('batches.detail', batch_id=wo.batch_id) }}">{{ wo.batch_no }}</a>{% else %}{{ t('work_orders.no_batch') }}{% endif %}</td></tr>
+  {% if wo.notes %}<tr><th>{{ t('common.notes') }}</th><td>{{ wo.notes }}</td></tr>{% endif %}
+</table>
+</div></div>
+
+<div class="card"><div class="card-header">{{ t('work_orders.materials') }}</div><div class="card-body">
+<table class="data-table">
+  <thead><tr><th>{{ t('common.raw_material') }}</th><th class="num">{{ t('work_orders.issued_qty') }}</th>
+    <th class="num">{{ t('work_orders.returned') }}</th><th class="num">{{ t('work_orders.used') }}</th></tr></thead>
+  <tbody>
+  {% for m in mats %}
+  <tr><td>{{ m.code }} - {{ L(m, 'name') }}</td>
+    <td class="num">{{ m.qty_issued|num }} {{ t('unit.' ~ m.unit) }}</td>
+    <td class="num">{{ m.qty_returned|num }}</td>
+    <td class="num">{{ (m.qty_issued - m.qty_returned)|num if wo.status != 'issued' else '-' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div></div>
+<div class="grid-2" style="margin-top:3rem">
+  <div class="muted">{{ t('work_orders.signature_member') }}: ________________</div>
+  <div class="muted text-right">{{ t('work_orders.signature_store') }}: ________________</div>
+</div>
+{% endblock %}

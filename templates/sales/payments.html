@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('sales.payments') }}{% endblock %}
+{% block content %}
+<div class="container stack">
+  {% call ui.page_header(t('sales.payments'), t('sales.payments_sub')) %}
+    <a class="btn btn-outline" href="{{ url_for('sales.index') }}">{{ t('common.back') }}</a>
+  {% endcall %}
+  <form method="get" class="toolbar">
+    <input type="month" name="month" value="{{ f.month }}">
+    <select name="mode">
+      <option value="">{{ t('common.mode') }}: {{ t('common.all') }}</option>
+      {% for m in modes %}<option value="{{ m }}" {{ 'selected' if f.mode == m }}>{{ t('mode.' ~ m) }}</option>{% endfor %}
+    </select>
+    <select name="customer">
+      <option value="">{{ t('common.customer') }}: {{ t('common.all') }}</option>
+      {% for c in customers %}<option value="{{ c.id }}" {{ 'selected' if f.customer == c.id }}>{{ c.name }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-outline" type="submit">{{ t('common.filter') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('sales.payments') }}">{{ t('common.all') }}</a>
+  </form>
+
+  <div class="kpi-grid">
+    {{ ui.kpi(t('common.total'), total|inr, tone='success') }}
+    {% for m in modes %}{{ ui.kpi(t('mode.' ~ m), (by_mode.get(m, 0))|inr) }}{% endfor %}
+  </div>
+
+  {% call ui.card() %}
+  {% if rows %}
+  <div style="overflow-x:auto">
+  <table class="data-table">
+    <thead><tr><th>{{ t('common.date') }}</th><th>{{ t('sales.invoice') }}</th><th>{{ t('sales.customer') }}</th>
+      <th class="num">{{ t('common.amount') }}</th><th>{{ t('common.mode') }}</th><th>{{ t('common.reference') }}</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="nowrap">{{ r.date|dmy }}</td>
+        <td><a href="{{ url_for('sales.detail', sale_id=r.sale_id) }}">{{ r.invoice_no }}</a></td>
+        <td><a href="{{ safe_url('customers.detail', customer_id=r.customer_id) }}">{{ r.customer_name }}</a></td>
+        <td class="num">{{ r.amount|inr }}</td>
+        <td>{{ t('mode.' ~ r.mode) }}</td>
+        <td>{{ r.reference or '' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><th colspan="3">{{ t('sales.totals') }}</th><th class="num">{{ total|inr }}</th><th colspan="2"></th></tr></tfoot>
+  </table>
+  </div>
+  {% else %}{{ ui.empty() }}{% endif %}
+  {% endcall %}
+</div>
+{% endblock %}

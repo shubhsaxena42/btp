@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ sale.invoice_no }}{% endblock %}
+{% block content %}
+<div class="container stack">
+  {% call ui.page_header(t('sales.invoice') ~ ' ' ~ sale.invoice_no, sale.date|dmy) %}
+    <a class="btn btn-primary" href="{{ url_for('sales.print_invoice', sale_id=sale.id, print=1) }}" target="_blank">{{ t('sales.print') }}</a>
+    <a class="btn btn-success" href="{{ wa_link }}" target="_blank" rel="noopener">{{ t('sales.whatsapp') }}</a>
+    <a class="btn btn-outline" href="{{ url_for('sales.index') }}">{{ t('common.back') }}</a>
+  {% endcall %}
+
+  {% call ui.card(org.org_name_hi if lang == 'hi' and org.org_name_hi else org.org_name) %}
+    <div class="grid-2">
+      <div>
+        <p class="mb-0">{{ org.org_address_hi if lang == 'hi' and org.org_address_hi else org.org_address }}</p>
+        <p class="muted mb-0">{{ t('sales.gstin') }}: {{ org.org_gstin }} &middot; {{ t('sales.phone') }}: {{ org.org_phone }}</p>
+      </div>
+      <div>
+        <strong>{{ t('sales.bill_to') }}</strong><br>
+        <a href="{{ safe_url('customers.detail', customer_id=cust.id) }}">{{ cust.name }}</a><br>
+        {% if cust.address %}{{ cust.address }}<br>{% endif %}
+        {{ cust.city or '' }} {{ cust.state }} ({{ cust.state_code }})<br>
+        {% if cust.gstin %}{{ t('sales.gstin') }}: {{ cust.gstin }}<br>{% endif %}
+        {% if cust.phone %}{{ cust.phone }}{% endif %}
+      </div>
+    </div>
+    <p class="muted">{{ t('sales.channel') }}: {{ t('channel.' ~ sale.channel) }}{% if sale.venue %} ({{ sale.venue }}){% endif %}
+      &middot; {{ ui.badge(t('sales.inter_hint') if sale.is_interstate else t('sales.intra_hint'), 'info') }}
+      &middot; {{ ui.status_badge(sale.pay_status) }}</p>
+  {% endcall %}
+
+  {% call ui.card(t('sales.items')) %}
+  <div style="overflow-x:auto">
+  <table class="data-table">
+    <thead><tr>
+      <th>#</th><th>{{ t('sales.product') }}</th><th>{{ t('sales.hsn') }}</th><th>{{ t('sales.batch_no') }}</th>
+      <th class="num">{{ t('common.qty') }}</th><th class="num">{{ t('common.rate') }}</th>
+      <th class="num">{{ t('sales.taxable') }}</th><th class="num">{{ t('sales.gst') }}</th><th class="num">{{ t('common.amount') }}</th>
+    </tr></thead>
+    <tbody>
+    {% for l in lines %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ l.p_name_hi if lang == 'hi' and l.p_name_hi else l.p_name }}<br><small class="muted">{{ l.gi_name_hi if lang == 'hi' and l.gi_name_hi else l.gi_name }}</small></td>
+        <td>{{ l.hsn or '' }}</td>
+        <td>{% if l.b_id %}<a href="{{ safe_url('batches.detail', batch_id=l.b_id) }}">{{ l.batch_no }}</a>{% endif %}</td>
+        <td class="num">{{ l.qty|num }} {{ t('unit.' ~ l.unit) }}</td>
+        <td class="num">{{ l.rate|inr }}</td>
+        <td class="num">{{ l.taxable|inr }}</td>
+        <td class="num">{{ l.tax|inr }} <small class="muted">({{ l.gst_rate|num }}%)</small></td>
+        <td class="num">{{ l.amount|inr }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><th colspan="6" class="num">{{ t('sales.subtotal') }}</th><th class="num">{{ sale.subtotal|inr }}</th><th class="num">{{ sale.tax_total|inr }}</th><th class="num">{{ sale.total|inr }}</th></tr>
+    </tfoot>
+  </table>
+  </div>
+  <table class="details-table" style="max-width:360px;margin-left:auto">
+    {% if sale.is_interstate %}
+      <tr><th>{{ t('sales.igst') }}</th><td class="num">{{ split.igst|inr }}</td></tr>
+    {% else %}
+      <tr><th>{{ t('sales.cgst') }}</th><td class="num">{{ split.cgst|inr }}</td></tr>
+      <tr><th>{{ t('sales.sgst') }}</th><td class="num">{{ split.sgst|inr }}</td></tr>
+    {% endif %}
+    <tr><th>{{ t('sales.grand_total') }}</th><td class="num"><strong>{{ sale.total|inr }}</strong></td></tr>
+  </table>
+  <p><strong>{{ t('sales.amount_words') }}:</strong> {{ sale.total|words }}</p>
+  {% if batches %}
+  <div class="alert alert-success">{{ t('sales.gi_verified_note') }}:
+    {% for bid, bno in batches %}<a href="{{ safe_url('batches.detail', batch_id=bid) }}">{{ bno }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+  </div>
+  {% endif %}
+  {% if sale.notes %}<p class="muted">{{ sale.notes }}</p>{% endif %}
+  {% endcall %}
+
+  <div class="grid-2">
+    {% call ui.card(t('sales.payment_history')) %}
+      <table class="details-table">
+        <tr><th>{{ t('common.total') }}</th><td class="num">{{ sale.total|inr }}</td></tr>
+        <tr><th>{{ t('common.paid') }}</th><td class="num">{{ sale.paid|inr }}</td></tr>
+        <tr><th>{{ t('common.due') }}</th><td class="num"><strong>{{ sale.due|inr }}</strong></td></tr>
+      </table>
+      {% if payments %}
+      <table class="data-table">
+        <thead><tr><th>{{ t('common.date') }}</th><th class="num">{{ t('common.amount') }}</th><th>{{ t('common.mode') }}</th><th>{{ t('common.reference') }}</th></tr></thead>
+        <tbody>{% for p in payments %}
+          <tr><td>{{ p.date|dmy }}</td><td class="num">{{ p.amount|inr }}</td><td>{{ t('mode.' ~ p.mode) }}</td><td>{{ p.reference or '' }}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+      {% else %}<p class="muted">{{ t('sales.no_payments') }}</p>{% endif %}
+    {% endcall %}
+
+    {% if sale.due > 0.005 %}
+    {% call ui.card(t('sales.record_payment')) %}
+      <form method="post" action="{{ url_for('sales.add_payment', sale_id=sale.id) }}" class="stack">
+        <div class="form-grid">
+          <div class="form-row"><label>{{ t('common.amount') }}</label>
+            <input type="number" name="amount" step="0.01" min="0.01" max="{{ sale.due }}" value="{{ sale.due }}" required></div>
+          <div class="form-row"><label>{{ t('common.mode') }}</label>
+            <select name="mode">{% for m in modes %}<option value="{{ m }}">{{ t('mode.' ~ m) }}</option>{% endfor %}</select></div>
+          <div class="form-row"><label>{{ t('common.date') }}</label>
+            <input type="date" name="date" value="{{ today }}" required></div>
+          <div class="form-row"><label>{{ t('common.reference') }}</label>
+            <input type="text" name="reference"></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">{{ t('sales.record_payment') }}</button></div>
+      </form>
+    {% endcall %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

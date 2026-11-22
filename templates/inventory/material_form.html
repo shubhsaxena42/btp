@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% set ttl = t('inventory.edit_material') if material else t('inventory.add_material') %}
+{% block title %}{{ ttl }}{% endblock %}
+{% block content %}
+{% call ui.page_header(ttl) %}
+  <a class="btn btn-outline" href="{{ url_for('inventory.materials') }}">{{ t('common.back') }}</a>
+{% endcall %}
+{% call ui.card() %}
+<form method="post" class="stack">
+  <div class="form-grid">
+    {% if material %}
+      {{ ui.field('code', t('inventory.code'), form.code, attrs='readonly') }}
+    {% else %}
+      {{ ui.field('code', t('inventory.code'), form.code, help=t('inventory.code_auto')) }}
+    {% endif %}
+    {{ ui.field('name', t('common.name'), form.name, required=True) }}
+    {{ ui.field('name_hi', t('inventory.name_hi'), form.name_hi) }}
+    {{ ui.field('unit', t('common.unit'), form.unit, type='select', required=True, options=units_opts) }}
+    {{ ui.field('cost_per_unit', t('inventory.cost_per_unit'), form.cost_per_unit, type='number', step='0.01', min=0) }}
+    {{ ui.field('reorder_level', t('inventory.reorder_level'), form.reorder_level, type='number', step='0.01', min=0) }}
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ t('common.save') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('inventory.materials') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}
+{% endblock %}

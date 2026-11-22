@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ cn.cn_no }}{% endblock %}
+{% block content %}
+{% call ui.page_header(cn.cn_no, cn.outlet_name) %}
+  <a class="btn btn-outline" href="{{ url_for('consignments.index') }}">{{ t('common.back') }}</a>
+{% endcall %}
+
+<div class="kpi-grid">
+  {{ ui.kpi(t('consignments.sent'), tot.sent|num) }}
+  {{ ui.kpi(t('consignments.sold'), tot.sold|num, tone='success') }}
+  {{ ui.kpi(t('consignments.at_outlet'), tot.remaining|num, tone='saffron') }}
+  {{ ui.kpi(t('consignments.value_at_outlet'), tot.value|inr, tone='warning' if tot.value > 0 else 'primary') }}
+</div>
+
+{% call ui.card(t('common.details')) %}
+<table class="details-table">
+  <tr><th>{{ t('consignments.outlet') }}</th><td><a href="{{ safe_url('customers.detail', customer_id=cn.outlet_id) }}">{{ cn.outlet_name }}</a></td></tr>
+  <tr><th>{{ t('consignments.sent_on') }}</th><td>{{ cn.sent_on|dmy }}
+    {% if cn.status == 'open' and age > 45 %}{{ ui.badge(t('consignments.aged') ~ ' (' ~ age ~ ')', 'warning') }}{% endif %}</td></tr>
+  <tr><th>{{ t('common.status') }}</th><td>{{ ui.status_badge(cn.status) }}</td></tr>
+  <tr><th>{{ t('consignments.invoiced') }}</th><td>{{ tot.invoiced|inr }}</td></tr>
+  <tr><th>{{ t('common.due') }}</th><td>{{ tot.due|inr }}</td></tr>
+  {% if cn.notes %}<tr><th>{{ t('common.notes') }}</th><td>{{ cn.notes }}</td></tr>{% endif %}
+</table>
+{% endcall %}
+
+{% call ui.card(t('consignments.lines')) %}
+<div style="overflow-x:auto">
+<table class="data-table">
+  <thead><tr><th>{{ t('common.product') }}</th><th>{{ t('consignments.batch_no') }}</th>
+    <th class="num">{{ t('common.rate') }}</th><th class="num">{{ t('consignments.sent') }}</th>
+    <th class="num">{{ t('consignments.sold') }}</th><th class="num">{{ t('consignments.returned') }}</th>
+    <th class="num">{{ t('consignments.remaining') }}</th><th class="num">{{ t('consignments.remaining_value') }}</th></tr></thead>
+  <tbody>
+  {% for l in lines %}
+  <tr><td>{{ L(l, 'name') }}</td>
+    <td><a href="{{ safe_url('batches.detail', batch_id=l.batch_id) }}">{{ l.batch_no }}</a></td>
+    <td class="num">{{ l.rate|inr }}</td><td class="num">{{ l.qty_sent|num }}</td>
+    <td class="num">{{ l.qty_sold|num }}</td><td class="num">{{ l.qty_returned|num }}</td>
+    <td class="num"><strong>{{ l.remaining|num }}</strong></td><td class="num">{{ (l.remaining * l.rate)|inr }}</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><th colspan="3">{{ t('common.total') }}</th><th class="num">{{ tot.sent|num }}</th>
+    <th class="num">{{ tot.sold|num }}</th><th class="num">{{ tot.returned|num }}</th>
+    <th class="num">{{ tot.remaining|num }}</th><th class="num">{{ tot.value|inr }}</th></tr></tfoot>
+</table>
+</div>
+{% endcall %}
+
+{% call ui.card(t('consignments.invoices')) %}
+{% if sales %}
+<table class="data-table">
+  <thead><tr><th>{{ t('consignments.invoice_no') }}</th><th>{{ t('common.date') }}</th>
+  <th class="num">{{ t('common.total') }}</th><th class="num">{{ t('common.due') }}</th><th>{{ t('common.status') }}</th></tr></thead>
+  <tbody>
+  {% for s in sales %}
+  <tr><td><a href="{{ safe_url('sales.detail', sale_id=s.id) }}">{{ s.invoice_no }}</a></td>
+  <td>{{ s.date|dmy }}</td><td class="num">{{ s.total|inr }}</td><td class="num">{{ s.due|inr }}</td>
+  <td>{{ ui.status_badge(s.pay_status) }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="muted">{{ t('consignments.no_invoices') }}</p>{% endif %}
+{% endcall %}
+
+{% if cn.status == 'open' %}
+<div class="grid-2">
+{% for kind in ['sale', 'return'] %}
+  {% call ui.card(t('consignments.record_' ~ kind)) %}
+  <form method="post" action="{{ url_for('consignments.record_' ~ kind, cn_id=cn.id) }}" class="stack">
+    <p class="muted">{{ t('consignments.' ~ kind ~ '_help') }}</p>
+    <div class="form-row"><label>{{ t('common.date') }}</label><input type="date" name="date" value="{{ today }}" required></div>
+    <table class="lines-table">
+      <thead><tr><th>{{ t('common.product') }}</th><th class="num">{{ t('consignments.remaining') }}</th>
+      <th class="num">{{ t('consignments.sold_now' if kind == 'sale' else 'consignments.returned_now') }}</th></tr></thead>
+      <tbody>
+      {% for l in lines if l.remaining > 0 %}
+      <tr><td>{{ L(l, 'name') }} <span class="muted">{{ l.batch_no }}</span></td><td class="num">{{ l.remaining|num }}</td>
+      <td><input type="number" name="qty_{{ l.id }}" min="0" max="{{ l.remaining|int }}" step="1" value="0"></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div class="form-actions"><button class="btn {{ 'btn-success' if kind == 'sale' else 'btn-saffron' }}" type="submit">{{ t('common.submit') }}</button></div>
+  </form>
+  {% endcall %}
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

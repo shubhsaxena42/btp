@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('consignments.new') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('consignments.new')) %}
+  <a class="btn btn-outline" href="{{ url_for('consignments.index') }}">{{ t('common.back') }}</a>
+{% endcall %}
+<form method="post">
+{% call ui.card(t('consignments.new')) %}
+  <div class="form-grid">
+    <div class="form-row">
+      <label for="customer_id">{{ t('consignments.outlet') }} *</label>
+      <select name="customer_id" id="customer_id" required>
+        <option value="">{{ t('common.select') }}</option>
+        {% for c in customers %}<option value="{{ c.id }}" {{ 'selected' if form.customer_id|string == c.id|string }}>{{ c.name }}{% if c.type == 'outlet' %} ({{ t('ctype.outlet') }}){% endif %}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="sent_on">{{ t('consignments.sent_on') }} *</label>
+      <input type="date" name="sent_on" id="sent_on" value="{{ form.sent_on }}" required>
+    </div>
+    <div class="form-row">
+      <label for="notes">{{ t('common.notes') }}</label>
+      <input type="text" name="notes" id="notes" value="{{ form.notes }}">
+    </div>
+  </div>
+{% endcall %}
+{% call ui.card(t('consignments.lines')) %}
+  <div style="overflow-x:auto">
+  <table class="lines-table" id="lines">
+    <thead><tr><th>{{ t('common.product') }}</th><th class="num">{{ t('common.qty') }}</th><th class="num">{{ t('common.rate') }}</th><th></th></tr></thead>
+    <tbody>
+    {% set rows = form.lines or [{'product_id':'','qty':'','rate':''}] %}
+    {% for l in rows %}
+    <tr>
+      <td><select name="product_id[]" class="p-sel">
+        <option value="">{{ t('common.select') }}</option>
+        {% for p in products %}<option value="{{ p.id }}" data-price="{{ p.price }}" data-stock="{{ '%g'|format(p.stock) }}" {{ 'selected' if l.product_id|string == p.id|string }}>{{ L(p, 'name') }} ({{ t('consignments.in_stock') }}: {{ p.stock|num }})</option>{% endfor %}
+      </select></td>
+      <td><input type="number" name="qty[]" min="1" step="1" inputmode="numeric" value="{{ l.qty }}" class="q-in"></td>
+      <td><input type="number" name="rate[]" min="0" step="0.01" value="{{ l.rate }}" class="r-in"></td>
+      <td><button type="button" class="btn btn-sm btn-outline rm">{{ t('consignments.remove') }}</button></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p><button type="button" class="btn btn-sm btn-outline" id="add-row">+ {{ t('consignments.add_line') }}</button></p>
+{% endcall %}
+<div class="form-actions">
+  <button class="btn btn-primary" type="submit">{{ t('common.save') }}</button>
+  <a class="btn btn-outline" href="{{ url_for('consignments.index') }}">{{ t('common.cancel') }}</a>
+</div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var body = document.querySelector('#lines tbody');
+  function wire(tr) {
+    tr.querySelector('.p-sel').addEventListener('change', function () {
+      var o = this.options[this.selectedIndex];
+      var r = tr.querySelector('.r-in');
+      if (o && o.dataset.price) { r.value = o.dataset.price; }
+      var q = tr.querySelector('.q-in');
+      if (o && o.dataset.stock) { q.max = o.dataset.stock; }
+    });
+    tr.querySelector('.rm').addEventListener('click', function () {
+      if (body.rows.length > 1) { tr.remove(); } else {
+        tr.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+        tr.querySelector('select').value = '';
+      }
+    });
+  }
+  Array.prototype.forEach.call(body.rows, wire);
+  document.getElementById('add-row').addEventListener('click', function () {
+    var c = body.rows[body.rows.length - 1].cloneNode(true);
+    c.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    c.querySelector('select').value = '';
+    body.appendChild(c); wire(c);
+  });
+})();
+</script>
+{% endblock %}

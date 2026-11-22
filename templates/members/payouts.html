@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('members.payouts') }}{% endblock %}
+{% block content %}
+<div class="container">
+{% call ui.page_header(t('members.payouts'), t('members.payouts_sub')) %}
+  <a class="btn btn-primary" href="{{ url_for('members.new_payout') }}">+ {{ t('members.new_payout') }}</a>
+{% endcall %}
+
+{% call ui.card(t('members.owed_section') ~ ' - ' ~ (owed_total|inr)) %}
+{% if owed %}
+<div style="overflow-x:auto"><table class="data-table">
+  <thead><tr><th>{{ t('common.code') }}</th><th>{{ t('common.member') }}</th><th>{{ t('common.village') }}</th><th class="num">{{ t('members.balance_owed') }}</th><th></th></tr></thead>
+  <tbody>
+  {% for m in owed %}
+  <tr>
+    <td>{{ m.code }}</td>
+    <td><a href="{{ url_for('members.detail', member_id=m.id) }}">{{ L(m, 'name') }}</a></td>
+    <td>{{ m.village or '' }}</td>
+    <td class="num" style="color:#b45309;font-weight:700">{{ m.balance|inr }}</td>
+    <td><a class="btn btn-sm btn-success" href="{{ url_for('members.new_payout', member_id=m.id) }}">{{ t('members.pay_btn') }}</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}{{ ui.empty(t('members.nothing_owed')) }}{% endif %}
+{% endcall %}
+
+{% call ui.card(t('members.history')) %}
+<form method="get" class="toolbar">
+  <select name="month" onchange="this.form.submit()">
+    <option value="">{{ t('members.all_months') }}</option>
+    {% for mo in months %}<option value="{{ mo }}" {{ 'selected' if mo == month }}>{{ mo }}</option>{% endfor %}
+  </select>
+  <button class="btn btn-outline btn-sm" type="submit">{{ t('common.filter') }}</button>
+</form>
+{% if rows %}
+<div style="overflow-x:auto"><table class="data-table">
+  <thead><tr><th>{{ t('common.date') }}</th><th>{{ t('common.member') }}</th><th class="num">{{ t('common.amount') }}</th><th>{{ t('common.mode') }}</th><th>{{ t('common.reference') }}</th><th>{{ t('common.notes') }}</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.date|dmy }}</td>
+    <td><a href="{{ url_for('members.detail', member_id=r.member_id) }}">{{ L(r, 'name') }}</a></td>
+    <td class="num">{{ r.amount|inr }}</td>
+    <td>{{ t('mode.' ~ r.mode) }}</td><td>{{ r.reference or '' }}</td><td>{{ r.notes or '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><th colspan="2">{{ t('common.total') }}</th><th class="num">{{ total|inr }}</th><th colspan="3"></th></tr></tfoot>
+</table></div>
+{% else %}{{ ui.empty(t('common.none_found')) }}{% endif %}
+{% endcall %}
+</div>
+{% endblock %}

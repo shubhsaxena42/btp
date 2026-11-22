@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% set org_nm = org.org_name_hi if lang == 'hi' and org.org_name_hi else org.org_name %}
+<title>{{ t('sales.tax_invoice') }} {{ sale.invoice_no }}</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Noto Sans Devanagari", Arial, sans-serif; font-size: 12px; color: #111; margin: 0; background: #eef0f3; }
+  .sheet { width: 210mm; min-height: 297mm; margin: 10px auto; background: #fff; padding: 12mm; border-top: 4px solid #003366; }
+  .bar { width: 210mm; margin: 10px auto 0; text-align: right; }
+  .bar a, .bar button { font: inherit; padding: 6px 14px; border: 1px solid #003366; background: #003366; color: #fff; border-radius: 4px; text-decoration: none; cursor: pointer; margin-left: 6px; }
+  .bar a.o { background: #fff; color: #003366; }
+  header { display: flex; justify-content: space-between; border-bottom: 2px solid #003366; padding-bottom: 8px; }
+  header h1 { margin: 0; font-size: 20px; color: #003366; }
+  header p { margin: 2px 0; }
+  .title { text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 1px; margin: 10px 0; }
+  .meta { display: flex; gap: 12px; margin-bottom: 10px; }
+  .meta > div { flex: 1; border: 1px solid #999; padding: 6px 8px; }
+  .meta h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; color: #003366; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #999; padding: 4px 5px; vertical-align: top; }
+  th { background: #f0f3f8; font-size: 11px; }
+  td.n, th.n { text-align: right; white-space: nowrap; }
+  table.summary { width: 260px; margin: 8px 0 0 auto; }
+  tr { page-break-inside: avoid; }
+  .tot td, .tot th { font-weight: 700; background: #fafafa; }
+  .words { margin: 8px 0; }
+  .foot { display: flex; gap: 12px; margin-top: 10px; }
+  .foot > div { flex: 1; }
+  .sign { margin-top: 36px; text-align: right; }
+  .decl { margin-top: 10px; font-style: italic; border-top: 1px dashed #999; padding-top: 6px; }
+  small { color: #555; }
+  @media print { body { background: #fff; } .sheet { margin: 0; width: auto; min-height: 0; padding: 0; border-top: 0; } .bar { display: none; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <a class="o" href="{{ url_for('sales.detail', sale_id=sale.id) }}">{{ t('sales.back_to_invoice') }}</a>
+  <button type="button" onclick="window.print()">{{ t('sales.print') }}</button>
+</div>
+<div class="sheet">
+  <header>
+    <div>
+      <h1>{{ org_nm }}</h1>
+      <p>{{ org.org_address_hi if lang == 'hi' and org.org_address_hi else org.org_address }}</p>
+      <p>{{ t('sales.gstin') }}: <strong>{{ org.org_gstin or '—' }}</strong></p>
+      <p>{{ t('sales.state') }}: {{ org.org_state or '—' }} &nbsp; {{ t('sales.state_code') }}: <strong>{{ org.org_state_code or '—' }}</strong></p>
+      <p>{{ t('sales.phone') }}: {{ org.org_phone or '—' }}{% if org.org_email %} &nbsp; {{ org.org_email }}{% endif %}</p>
+    </div>
+    <div style="text-align:right">
+      <p><strong>{{ t('sales.invoice_no') }}:</strong> {{ sale.invoice_no }}</p>
+      <p><strong>{{ t('common.date') }}:</strong> {{ sale.date|dmy }}</p>
+      <p><small>{{ t('sales.original') }}</small></p>
+    </div>
+  </header>
+  <div class="title">{{ t('sales.tax_invoice') }}</div>
+  <div class="meta">
+    <div>
+      <h4>{{ t('sales.bill_to') }}</h4>
+      <strong>{{ cust.name }}</strong><br>
+      {% if cust.address %}{{ cust.address }}<br>{% endif %}
+      {{ cust.city or '' }}{% if cust.city and cust.state %}, {% endif %}{{ cust.state or '' }}<br>
+      {{ t('sales.state_code') }}: {{ cust.state_code or '—' }}<br>
+      {{ t('sales.gstin') }}: {% if cust.gstin %}<strong>{{ cust.gstin }}</strong>{% else %}{{ t('sales.unregistered') }}{% endif %}<br>
+      {% if cust.phone %}{{ t('sales.phone') }}: {{ cust.phone }}{% endif %}
+    </div>
+    <div>
+      <h4>{{ t('sales.place_of_supply') }}</h4>
+      <strong>{{ cust.state or '—' }} ({{ cust.state_code or '—' }})</strong><br>
+      {{ t('sales.inter_hint') if sale.is_interstate else t('sales.intra_hint') }}<br>
+      <small>{{ t('sales.reverse_charge') }}: {{ t('common.no') }}<br>{{ t('sales.channel') }}: {{ t('channel.' ~ sale.channel) }}{% if sale.venue %} - {{ sale.venue }}{% endif %}</small>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th rowspan="2">{{ t('sales.sno') }}</th><th rowspan="2">{{ t('sales.product') }}</th><th rowspan="2">{{ t('sales.hsn') }}</th>
+        <th rowspan="2">{{ t('sales.batch_no') }}</th><th rowspan="2" class="n">{{ t('common.qty') }}</th><th rowspan="2">{{ t('common.unit') }}</th>
+        <th rowspan="2" class="n">{{ t('common.rate') }}</th><th rowspan="2" class="n">{{ t('sales.taxable') }}</th>
+        {% if sale.is_interstate %}<th colspan="2">{{ t('sales.igst') }}</th>{% else %}<th colspan="2">{{ t('sales.cgst') }}</th><th colspan="2">{{ t('sales.sgst') }}</th>{% endif %}
+        <th rowspan="2" class="n">{{ t('common.total') }}</th>
+      </tr>
+      <tr>
+        {% if sale.is_interstate %}<th class="n">%</th><th class="n">{{ t('common.amount') }}</th>
+        {% else %}<th class="n">%</th><th class="n">{{ t('common.amount') }}</th><th class="n">%</th><th class="n">{{ t('common.amount') }}</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+    {% for l in lines %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ l.p_name_hi if lang == 'hi' and l.p_name_hi else l.p_name }}<br><small>{{ l.gi_name_hi if lang == 'hi' and l.gi_name_hi else l.gi_name }}</small></td>
+        <td>{{ l.hsn or '—' }}</td>
+        <td>{{ l.batch_no or '—' }}</td>
+        <td class="n">{{ l.qty|num }}</td><td>{{ t('unit.' ~ l.unit) }}</td>
+        <td class="n">{{ l.rate|inr }}</td><td class="n">{{ l.taxable|inr }}</td>
+        {% if sale.is_interstate %}
+          <td class="n">{{ l.gst_rate|num }}</td><td class="n">{{ l.tax|inr }}</td>
+        {% else %}
+          <td class="n">{{ (l.gst_rate / 2)|num }}</td><td class="n">{{ (l.tax / 2)|round(2)|inr }}</td>
+          <td class="n">{{ (l.gst_rate / 2)|num }}</td><td class="n">{{ (l.tax - (l.tax / 2)|round(2))|round(2)|inr }}</td>
+        {% endif %}
+        <td class="n">{{ l.amount|inr }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="tot">
+        <td colspan="4" class="n">{{ t('common.total') }}</td>
+        <td class="n">{{ lines|sum(attribute='qty')|num }}</td><td></td><td></td>
+        <td class="n">{{ sale.subtotal|inr }}</td>
+        {% if sale.is_interstate %}<td></td><td class="n">{{ split.igst|inr }}</td>
+        {% else %}<td></td><td class="n">{{ split.cgst|inr }}</td><td></td><td class="n">{{ split.sgst|inr }}</td>{% endif %}
+        <td class="n">{{ sale.total|inr }}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <p class="words"><strong>{{ t('sales.amount_words') }}:</strong> {{ sale.total|words }}</p>
+  <table class="summary">
+    <tr><td>{{ t('sales.taxable') }}</td><td class="n">{{ sale.subtotal|inr }}</td></tr>
+    {% if sale.is_interstate %}<tr><td>{{ t('sales.igst') }}</td><td class="n">{{ split.igst|inr }}</td></tr>
+    {% else %}<tr><td>{{ t('sales.cgst') }}</td><td class="n">{{ split.cgst|inr }}</td></tr><tr><td>{{ t('sales.sgst') }}</td><td class="n">{{ split.sgst|inr }}</td></tr>{% endif %}
+    <tr class="tot"><td>{{ t('sales.grand_total') }}</td><td class="n">{{ sale.total|inr }}</td></tr>
+  </table>
+  {% if sale.notes %}<p><small>{{ sale.notes }}</small></p>{% endif %}
+  <div class="foot">
+    <div>
+      <strong>{{ t('sales.bank_details') }}</strong><br>
+      {{ org.org_bank or '—' }}<br>
+      {% if org.org_upi %}{{ t('sales.upi') }}: {{ org.org_upi }}{% endif %}
+    </div>
+    <div class="sign">
+      {{ t('sales.for_org', org=org_nm) }}<br><br><br>
+      <strong>{{ t('sales.signatory') }}</strong>
+    </div>
+  </div>
+  <div class="decl">{{ t('sales.gi_declaration') }}<br><small>{{ t('sales.computer_generated') }}</small></div>
+</div>
+{% if auto %}<script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 300); });</script>{% endif %}
+</body>
+</html>

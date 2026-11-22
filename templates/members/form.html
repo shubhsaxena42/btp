@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('members.new_title') if is_new else t('members.edit') }}{% endblock %}
+{% block content %}
+<div class="container">
+{{ ui.page_header(t('members.new_title') if is_new else t('members.edit')) }}
+{% set dopts = [('', t('common.select'))] %}{% for d in districts %}{% set _ = dopts.append((d, d)) %}{% endfor %}
+{% call ui.card() %}
+<form method="post" class="stack">
+  <div class="form-grid">
+    <div class="form-row">
+      <label>{{ t('common.code') }}</label>
+      <input type="text" value="{{ member.code if member else '' }}" readonly placeholder="M-###">
+    </div>
+    {{ ui.field('name', t('common.name'), v.name, required=True) }}
+    {{ ui.field('name_hi', t('members.name_hi'), v.name_hi) }}
+    {{ ui.field('gender', t('members.gender'), v.gender, type='select', options=[('', t('common.select')), ('F', t('members.gender_F')), ('M', t('members.gender_M')), ('O', t('members.gender_O'))]) }}
+    {{ ui.field('phone', t('common.phone'), v.phone, type='tel', attrs='pattern="[0-9]{10}" maxlength="10" inputmode="numeric"') }}
+    {{ ui.field('village', t('common.village'), v.village) }}
+    {{ ui.field('block', t('common.block'), v.block) }}
+    {{ ui.field('district', t('common.district'), v.district, type='select', options=dopts) }}
+    {{ ui.field('shg_name', t('members.shg'), v.shg_name) }}
+    {{ ui.field('skill', t('members.skill'), v.skill) }}
+    {{ ui.field('skill_hi', t('members.skill_hi'), v.skill_hi) }}
+    {{ ui.field('upi_id', t('members.upi'), v.upi_id) }}
+    {{ ui.field('bank_account', t('members.bank_account'), v.bank_account) }}
+    {{ ui.field('ifsc', t('members.ifsc'), v.ifsc, attrs='maxlength="11"') }}
+    {{ ui.field('joined_on', t('members.joined_on'), v.joined_on, type='date') }}
+    <div class="form-row">
+      <label><input type="checkbox" name="active" value="1" {{ 'checked' if v.active }}> {{ t('members.active') }}</label>
+    </div>
+  </div>
+  {{ ui.field('notes', t('common.notes'), v.notes, type='textarea') }}
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">{{ t('common.save') }}</button>
+    <a class="btn btn-outline" href="{{ url_for('members.detail', member_id=member.id) if member else url_for('members.index') }}">{{ t('common.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}
+</div>
+{% endblock %}

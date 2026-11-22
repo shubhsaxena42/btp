@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ t('dashboard.title') }}{% endblock %}
+{% block content %}
+{% call ui.page_header(t('dashboard.title'), t('dashboard.subtitle', date=today|dmy)) %}
+  <a class="btn btn-primary" href="{{ safe_url('sales.new') }}">+ {{ t('dashboard.new_invoice') }}</a>
+  <a class="btn btn-outline" href="{{ safe_url('work_orders.new') }}">+ {{ t('dashboard.new_wo') }}</a>
+  <a class="btn btn-outline" href="{{ safe_url('purchases.new') }}">+ {{ t('dashboard.record_purchase') }}</a>
+  <a class="btn btn-outline" href="{{ safe_url('members.new_payout') }}">{{ t('dashboard.pay_member') }}</a>
+{% endcall %}
+
+{% set k = kpis %}
+{% if k.sales_pct is none %}{% set sales_sub = t('dashboard.kpi_sales_none') %}
+{% elif k.sales_pct >= 0 %}{% set sales_sub = t('dashboard.kpi_sales_up', pct=k.sales_pct) %}
+{% else %}{% set sales_sub = t('dashboard.kpi_sales_down', pct=(-k.sales_pct)) %}{% endif %}
+
+<div class="kpi-grid">
+  {{ ui.kpi(t('dashboard.kpi_sales'), k.sales|inr0, sales_sub, 'success' if (k.sales_pct is none or k.sales_pct >= 0) else 'warning', safe_url('sales.index')) }}
+  {{ ui.kpi(t('dashboard.kpi_receivable'), k.receivable|inr0, t('dashboard.kpi_receivable_sub'), 'saffron', safe_url('customers.index')) }}
+  {{ ui.kpi(t('dashboard.kpi_payable'), k.payable|inr0, t('dashboard.kpi_payable_sub'), 'warning', safe_url('members.payouts')) }}
+  {{ ui.kpi(t('dashboard.kpi_stock'), k.stock|inr0, t('dashboard.kpi_stock_sub'), 'primary', safe_url('inventory.index')) }}
+  {{ ui.kpi(t('dashboard.kpi_pending'), k.pending, t('dashboard.kpi_pending_sub'), 'danger' if k.pending else 'success', safe_url('batches.index', status='pending')) }}
+  {{ ui.kpi(t('dashboard.kpi_wo'), k.wo_open, t('dashboard.kpi_wo_sub', n=k.wo_overdue) if k.wo_overdue else t('dashboard.kpi_wo_sub_ok'), 'danger' if k.wo_overdue else 'primary', safe_url('work_orders.index')) }}
+</div>
+
+<div class="grid-2">
+  {% call ui.card(t('dashboard.chart_monthly')) %}{{ ui.bar_chart(monthly) }}{% endcall %}
+  {% call ui.card(t('dashboard.chart_gi')) %}
+    {% if by_gi %}{{ ui.bar_chart(by_gi) }}{% else %}{{ ui.empty() }}{% endif %}
+  {% endcall %}
+</div>
+<div class="grid-2">
+  {% call ui.card(t('dashboard.chart_channel')) %}
+    {% if by_channel %}{{ ui.bar_chart(by_channel) }}{% else %}{{ ui.empty() }}{% endif %}
+  {% endcall %}
+  {% call ui.card(t('dashboard.attention'), 'saffron') %}
+    {% if alerts %}
+    <ul class="alert-list" style="list-style:none;margin:0;padding:0;max-height:340px;overflow:auto">
+      {% for a in alerts %}
+      <li style="padding:.5rem 0;border-bottom:1px solid #e5e7eb;display:flex;gap:.5rem;align-items:flex-start">
+        {{ ui.badge('!', a.tone) }}
+        <a href="{{ safe_url(a.endpoint, **a.kw) }}" style="flex:1">{{ a.text }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color:#138808;font-weight:600;margin:0">&#10003; {{ t('dashboard.all_clear') }}</p>
+    {% endif %}
+  {% endcall %}
+</div>
+
+<div class="grid-2">
+  {% call ui.card(t('dashboard.recent_invoices')) %}
+    {% if recent_sales %}
+    <table class="data-table">
+      <thead><tr><th>{{ t('dashboard.invoice_no') }}</th><th>{{ t('common.customer') }}</th><th class="num">{{ t('common.total') }}</th><th>{{ t('common.status') }}</th></tr></thead>
+      <tbody>
+      {% for s in recent_sales %}
+        <tr>
+          <td><a href="{{ safe_url('sales.detail', sale_id=s.id) }}">{{ s.invoice_no }}</a><br><small class="muted">{{ s.date|dmy }}</small></td>
+          <td>{{ s.customer }}</td>
+          <td class="num">{{ s.total|inr }}</td>
+          <td>{{ ui.status_badge(s.pay_status) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p style="margin:.5rem 0 0"><a href="{{ safe_url('sales.index') }}">{{ t('dashboard.view_all') }} &rarr;</a></p>
+    {% else %}{{ ui.empty() }}{% endif %}
+  {% endcall %}
+  {% call ui.card(t('dashboard.recent_batches')) %}
+    {% if recent_batches %}
+    <table class="data-table">
+      <thead><tr><th>{{ t('common.batch') }}</th><th>{{ t('common.product') }}</th><th>{{ t('common.status') }}</th></tr></thead>
+      <tbody>
+      {% for b in recent_batches %}
+        <tr>
+          <td><a href="{{ safe_url('batches.detail', batch_id=b.id) }}">{{ b.batch_no }}</a><br><small class="muted">{{ b.mfg_date|dmy }}</small></td>
+          <td>{{ L(b, 'name') }}</td>
+          <td>{{ ui.status_badge(b.status) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p style="margin:.5rem 0 0"><a href="{{ safe_url('batches.index') }}">{{ t('dashboard.view_all') }} &rarr;</a></p>
+    {% else %}{{ ui.empty() }}{% endif %}
+  {% endcall %}
+</div>
+{% endblock %}

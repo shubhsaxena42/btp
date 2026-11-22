@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% import '_ui.html' as ui %}
+{% block title %}{{ b.batch_no }}{% endblock %}
+{% block content %}
+{% call ui.page_header(b.batch_no, L({'name': b.product_name, 'name_hi': b.product_name_hi}, 'name')) %}
+  {{ ui.status_badge(b.status) }}
+  <a class="btn btn-outline btn-sm" href="{{ url_for('batches.index') }}">{{ t('common.back') }}</a>
+{% endcall %}
+
+<div class="grid-2">
+<div class="stack">
+{% call ui.card(t('batches.info')) %}
+<table class="details-table">
+  <tr><th>{{ t('batches.batch_no') }}</th><td>{{ b.batch_no }}</td></tr>
+  <tr><th>{{ t('common.product') }}</th><td><a href="{{ safe_url('products.detail', product_id=b.product_id) }}">{{ L({'name': b.product_name, 'name_hi': b.product_name_hi}, 'name') }}</a> <span class="muted">({{ b.sku }})</span></td></tr>
+  <tr><th>{{ t('common.gi') }}</th><td><a href="{{ safe_url('gi.detail', gi_id=b.gi_id) }}">{{ L({'name': b.gi_name, 'name_hi': b.gi_name_hi}, 'name') }}</a></td></tr>
+  <tr><th>{{ t('batches.maker') }}</th><td>{% if b.member_id %}<a href="{{ safe_url('members.detail', member_id=b.member_id) }}">{{ L({'name': b.member_name, 'name_hi': b.member_name_hi}, 'name') }}</a> <span class="muted">({{ b.member_code }})</span>{% else %}—{% endif %}</td></tr>
+  <tr><th>{{ t('batches.work_order') }}</th><td>{% if b.work_order_id %}<a href="{{ safe_url('work_orders.detail', wo_id=b.work_order_id) }}">{{ b.wo_no }}</a>{% else %}—{% endif %}</td></tr>
+  <tr><th>{{ t('batches.qty_made') }}</th><td>{{ b.qty|num }}</td></tr>
+  <tr><th>{{ t('batches.mfg_date') }}</th><td>{{ b.mfg_date|dmy }}</td></tr>
+  <tr><th>{{ t('batches.expiry') }}</th><td>{{ b.expiry_date|dmy or '—' }}
+    {% if exp == 'expired' %}{{ ui.badge(t('batches.expired'), 'danger') }}{% elif exp == 'soon' %}{{ ui.badge(t('batches.expiring'), 'warning') }}{% endif %}</td></tr>
+  <tr><th>{{ t('batches.serial_range') }}</th><td>{{ b.serial_from }} &rarr; {{ b.serial_to }}</td></tr>
+  <tr><th>{{ t('common.status') }}</th><td>{{ ui.status_badge(b.status) }}
+    {% if b.published_on %}{{ ui.badge(t('status.published'), 'success') }}{% endif %}</td></tr>
+</table>
+{% endcall %}
+
+{% call ui.card(t('batches.stock')) %}
+<p><strong>{{ t('batches.on_hand') }}:</strong> {{ b.qty_on_hand|num }}</p>
+<h4>{{ t('batches.movements') }}</h4>
+{% if txns %}
+<table class="data-table">
+  <thead><tr><th>{{ t('common.date') }}</th><th>{{ t('common.type') }}</th><th class="num">{{ t('common.qty') }}</th><th>{{ t('common.reference') }}</th></tr></thead>
+  <tbody>
+  {% for x in txns %}
+  <tr><td class="nowrap">{{ x.date|dmy }}</td><td>{{ t('ref.' ~ x.ref_type) }}</td>
+    <td class="num">{{ '+' if x.qty > 0 }}{{ x.qty|num }}</td>
+    <td>{% if x.ref_type == 'sale' and x.ref_id %}<a href="{{ safe_url('sales.detail', sale_id=x.ref_id) }}">#{{ x.ref_id }}</a>
+        {% elif x.ref_type in ('consignment_out','consignment_return') and x.ref_id %}<a href="{{ safe_url('consignments.detail', cn_id=x.ref_id) }}">#{{ x.ref_id }}</a>
+        {% elif x.ref_type == 'production' and b.work_order_id %}<a href="{{ safe_url('work_orders.detail', wo_id=b.work_order_id) }}">{{ b.wo_no }}</a>
+        {% else %}<span class="muted">{{ x.note or '' }}</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty() }}{% endif %}
+{% endcall %}
+</div>
+
+<div class="stack">
+{% if b.status == 'pending' %}
+{% call ui.card(t('batches.inspection'), 'saffron') %}
+<form method="post" action="{{ url_for('batches.inspect', batch_id=b.id) }}" class="stack">
+  <p class="muted">{{ t('batches.inspection_help') }}</p>
+  {% if checklist %}
+  {% for item in checklist %}
+  <label style="display:flex;gap:.5rem;align-items:flex-start">
+    <input type="checkbox" name="check_{{ loop.index0 }}" value="1">
+    <span>{{ item['hi'] if lang == 'hi' and item['hi'] else item['en'] }}</span>
+  </label>
+  {% endfor %}
+  {% else %}<div class="alert alert-info">{{ t('batches.no_checklist') }}</div>{% endif %}
+  {{ ui.field('inspected_by', t('batches.inspector'), '', required=True) }}
+  {{ ui.field('notes', t('batches.inspection_notes'), '', type='textarea') }}
+  <div class="form-actions">
+    <button class="btn btn-success" type="submit" name="action" value="approve">{{ t('batches.approve') }}</button>
+    <button class="btn btn-danger" type="submit" name="action" value="reject">{{ t('batches.reject') }}</button>
+  </div>
+</form>
+{% endcall %}
+{% else %}
+{% call ui.card(t('batches.result'), 'success' if b.status == 'approved' else 'danger') %}
+<table class="details-table">
+  {% for item in checklist %}
+  <tr><td>{{ item['hi'] if lang == 'hi' and item['hi'] else item['en'] }}</td>
+    <td class="nowrap">{% if result[loop.index0] %}<span style="color:#1a7a3b">✓ {{ t('batches.check_pass') }}</span>{% else %}<span style="color:#b00020">✗ {{ t('batches.check_fail') }}</span>{% endif %}</td></tr>
+  {% endfor %}
+  <tr><th>{{ t('batches.inspected_by') }}</th><td>{{ b.inspected_by }}</td></tr>
+  <tr><th>{{ t('batches.inspected_on') }}</th><td>{{ b.inspected_on|dmy }}</td></tr>
+  <tr><th>{{ t('common.notes') }}</th><td>{{ b.inspection_notes or '—' }}</td></tr>
+</table>
+{% endcall %}
+{% endif %}
+
+{% if b.status == 'approved' %}
+{% call ui.card(t('batches.publish_card'), 'success') %}
+<h4>{{ t('batches.preview') }}</h4>
+<div class="verification-card" style="border:1px solid #d0d7e2;border-radius:6px;overflow:hidden;margin-bottom:1rem">
+  <div class="card-header" style="background:#003366;color:#fff;padding:.7rem 1rem"><strong>{{ t('batches.portal_card_title') }}</strong></div>
+  <div style="background:#e6f4ea;color:#1a7a3b;padding:.6rem 1rem;font-weight:600">{{ t('batches.verified') }}</div>
+  <div style="padding:.5rem 1rem">
+  <table class="details-table">
+    <tr><th>{{ t('batches.f_product') }}</th><td>{{ row['Product Name'] }}</td></tr>
+    <tr><th>{{ t('batches.f_manufacturer') }}</th><td>{{ row['Manufacturer Name'] }}</td></tr>
+    <tr><th>{{ t('batches.f_gi_status') }}</th><td>{{ row['Status'] }}</td></tr>
+    <tr><th>{{ t('batches.f_serial') }}</th><td>{{ row['Serial Number'] }}</td></tr>
+    <tr><th>{{ t('batches.f_batch') }}</th><td>{{ row['Batch Number'] }}</td></tr>
+    <tr><th>{{ t('batches.f_mfg') }}</th><td>{{ row['Manufacturing Date'] }}</td></tr>
+    <tr><th>{{ t('batches.f_expiry') }}</th><td>{{ row['Expiry Date'] or '—' }}</td></tr>
+  </table>
+  <details style="margin-top:.5rem">
+    <summary style="cursor:pointer;color:#003366;font-weight:600">{{ t('batches.gi_details') }}</summary>
+    <table class="details-table">
+    {% for k in ['Application Number','Geographical Indications','Applicant Name','Applicant Address','Date of Filing','Class','Goods','Geographical Area','Priority Country','Journal Number','Availability Date','Certificate Number','Certificate Date','Registration Valid Upto'] %}
+      <tr><th>{{ k }}</th><td>{{ row[k] or '—' }}</td></tr>
+    {% endfor %}
+    </table>
+  </details>
+  </div>
+</div>
+
+<div class="qr-box" id="qr-label" style="text-align:center">
+  <p class="mb-0"><strong>{{ row['Product Name'] }}</strong></p>
+  <p class="muted mb-0">{{ b.batch_no }}</p>
+  <img src="{{ url_for('batches.qr', batch_id=b.id) }}" alt="QR" width="180" height="180">
+  <p class="muted mb-0">{{ t('batches.qr_label') }}</p>
+  <p><strong>{{ t('batches.verify_url') }}:</strong><br><a href="{{ verify_url }}" target="_blank" rel="noopener" style="word-break:break-all">{{ verify_url }}</a></p>
+</div>
+
+<div class="form-actions">
+  <a class="btn btn-outline" href="{{ url_for('batches.export_row', batch_id=b.id) }}">{{ t('batches.download_row') }}</a>
+  <a class="btn btn-outline" href="{{ url_for('batches.portal') }}">{{ t('batches.all_portal_rows') }}</a>
+  <button type="button" class="btn btn-outline" id="print-qr">{{ t('batches.print_qr') }}</button>
+  {% if b.published_on %}
+    {{ ui.badge(t('batches.published_on', date=b.published_on|dmy), 'success') }}
+  {% else %}
+  <form method="post" action="{{ url_for('batches.publish', batch_id=b.id) }}" style="display:inline">
+    <button class="btn btn-success" type="submit">{{ t('batches.publish') }}</button>
+  </form>
+  {% endif %}
+</div>
+<p class="muted"><small>{{ t('batches.portal_note') }}</small></p>
+{% endcall %}
+{% endif %}
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var btn = document.getElementById('print-qr'), box = document.getElementById('qr-label');
+  if (!btn || !box) return;
+  btn.addEventListener('click', function () {
+    var w = window.open('', '_blank', 'width=420,height=560');
+    if (!w) return;
+    w.document.write('<!doctype html><meta charset="utf-8"><title>' + {{ b.batch_no|tojson }} + '</title><style>@page{size:A6;margin:8mm}body{font-family:Arial,sans-serif;text-align:center}img{width:60mm;height:60mm}a{word-break:break-all;font-size:10px;color:#000;text-decoration:none}</style>' + box.innerHTML);
+    w.document.close();
+    w.onload = function () { w.focus(); w.print(); };
+  });
+})();
+</script>
+{% endblock %}
