@@ -79,4 +79,6 @@ STRINGS = {
     'batches.published_msg': ('Batch {batch_no} published to the portal export.', 'बैच {batch_no} पोर्टल निर्यात में प्रकाशित हुआ।'),
     'batches.all_portal_rows': ('All portal rows', 'सभी पोर्टल पंक्तियाँ'),
     'batches.print_qr': ('Print QR label', 'QR लेबल प्रिंट करें'),
+    'batches.sync_added': ('Row added to the GI portal database (database.xlsx).', 'जीआई पोर्टल डेटाबेस (database.xlsx) में पंक्ति जोड़ दी गई।'),
+    'batches.sync_error': ('Could not write to the GI portal database. Close database.xlsx if it is open and publish again.', 'जीआई पोर्टल डेटाबेस में नहीं लिखा जा सका। database.xlsx खुली हो तो बंद करके फिर से प्रकाशित करें।'),
 }

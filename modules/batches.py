@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from flask import (Blueprint, Response, abort, flash, redirect, render_template,
                    request, url_for)
 
-from core import db
+from core import db, portal_sync
 from core.i18n import t
 
 bp = Blueprint('batches', __name__, url_prefix='/batches')
@@ -246,6 +246,14 @@ def publish(batch_id):
             db.execute('UPDATE batch SET published_on = ? WHERE id = ?', (db.today(), batch_id))
             db.commit()
         flash(t('batches.published_msg', batch_no=b['batch_no']), 'success')
+        try:
+            res = portal_sync.append_row(portal_row(batch_id))
+        except Exception:
+            res = 'error'
+        if res == 'added':
+            flash(t('batches.sync_added'), 'success')
+        elif res == 'error':
+            flash(t('batches.sync_error'), 'warning')
     nxt = request.form.get('next')
     if nxt == 'portal':
         return redirect(url_for('batches.portal'))

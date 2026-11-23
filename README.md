@@ -26,3 +26,12 @@ Push the repository (with `erp.db` committed) and import it in Vercel; `vercel.j
 with `@vercel/python`. On Vercel the bundled `erp.db` is copied to `/tmp/erp.db` on first use.
 Edits made on Vercel are stored in `/tmp` and reset whenever the instance restarts.
 Set `SECRET_KEY` in the project environment.
+
+## Sync with the GI portal
+Publishing an approved batch (Batches → batch → Publish) also appends its row to the GI
+portal's `database.xlsx` (default: `../GI-Authentication-Portal/database.xlsx`, override
+with env `PORTAL_XLSX`). Rows are de-duplicated by Batch Number. If the file isn't
+present (e.g. on Vercel) the step is skipped. After syncing, commit the portal's
+`database.xlsx` and push so its Vercel deployment picks up the new rows.
+Note: the portal shows the first row for an Application Number, so the first row added
+per GI is the one buyers see.
